@@ -32,6 +32,15 @@
     color:var(--maroon); margin:0 0 4px;
   }
   .sub{text-align:center;color:var(--text-soft);font-size:14px;margin-bottom:24px;}
+  .counter-card{
+    max-width:480px;margin:8px auto 18px;padding:14px;border-radius:14px;
+    background:linear-gradient(135deg,var(--gold) 0%, var(--maroon) 100%);
+    color:#fff;box-shadow:0 8px 20px rgba(106,50,86,0.18);text-align:center;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+  }
+  .counter-days{font-family:'Fraunces',serif;font-size:28px;font-weight:700;letter-spacing:0.02em;}
+  .counter-hms{font-size:15px;opacity:0.95;font-weight:600}
+  .counter-small{font-size:12px;opacity:0.9}
   .balance-card{
     background:var(--maroon); border-radius:16px; padding:22px 20px; color:#fff; text-align:center;
     margin-bottom:20px; position:relative; overflow:hidden;
@@ -128,6 +137,7 @@
 <div class="wrap">
   <h1>Wedding expense ledger</h1>
   <div class="sub">Track spending across boy's side and girl's side, in one shared place</div>
+  <div id="weddingCounter" class="counter-card" aria-live="polite"></div>
 
   <div class="balance-card">
     <div class="balance-label">Net balance</div>
@@ -258,6 +268,41 @@ const expensesRef = db.collection('expenses');
 function fmt(n){
   n = Math.round(n||0);
   return "₹" + n.toLocaleString('en-IN');
+}
+
+// Wedding day countdown (assumes DD/MM/YYYY -> 12 Feb 2027)
+// Countdown card renderer
+function startWeddingCountdown(){
+  const target = new Date(2027, 1, 12, 0, 0, 0); // 12 Feb 2027
+  const el = document.getElementById('weddingCounter');
+  if(!el) return;
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+
+  function update(){
+    const now = new Date();
+    let diff = Math.max(0, target.getTime() - now.getTime());
+    if(diff <= 0){
+      el.innerHTML = `<div class="counter-days">Wedding day — congratulations! 🎉</div>`;
+      return;
+    }
+    const days = Math.floor(diff / (1000*60*60*24));
+    diff -= days * (1000*60*60*24);
+    const hours = Math.floor(diff / (1000*60*60));
+    diff -= hours * (1000*60*60);
+    const mins = Math.floor(diff / (1000*60));
+    diff -= mins * (1000*60);
+    const secs = Math.floor(diff / 1000);
+
+    el.innerHTML = `
+      <div class="counter-days">${days} <span style="font-size:14px;opacity:0.95;">days</span></div>
+      <div class="counter-hms">${pad(hours)}:${pad(mins)}:${pad(secs)}</div>
+      <div class="counter-small">until wedding — 12 Feb 2027 &#127872;</div>
+    `;
+  }
+
+  update();
+  setInterval(update, 1000);
 }
 
 function listenToExpenses(){
@@ -545,6 +590,8 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
 });
 
 listenToExpenses();
+// start wedding countdown
+startWeddingCountdown();
 </script>
 </body>
 </html>
