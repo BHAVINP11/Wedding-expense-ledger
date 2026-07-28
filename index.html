@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wedding Expense Tracker</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Work+Sans:wght@400;500;600&display=swap');
@@ -32,15 +33,24 @@
     color:var(--maroon); margin:0 0 4px;
   }
   .sub{text-align:center;color:var(--text-soft);font-size:14px;margin-bottom:24px;}
-  .counter-card{
-    max-width:480px;margin:8px auto 18px;padding:14px;border-radius:14px;
-    background:linear-gradient(135deg,var(--gold) 0%, var(--maroon) 100%);
-    color:#fff;box-shadow:0 8px 20px rgba(106,50,86,0.18);text-align:center;
-    display:flex;flex-direction:column;align-items:center;gap:6px;
+
+  /* Countdown */
+  .countdown-card{
+    background:linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);
+    border-radius:20px; padding:26px 20px 22px; margin-bottom:20px; text-align:center; position:relative; overflow:hidden;
   }
-  .counter-days{font-family:'Fraunces',serif;font-size:28px;font-weight:700;letter-spacing:0.02em;}
-  .counter-hms{font-size:15px;opacity:0.95;font-weight:600}
-  .counter-small{font-size:12px;opacity:0.9}
+  .countdown-card::before{
+    content:"";position:absolute;top:-60%;left:50%;transform:translateX(-50%);
+    width:300px;height:300px;background:var(--gold);opacity:0.13;border-radius:50%;
+  }
+  .countdown-date{color:var(--gold-light);font-size:12px;letter-spacing:0.1em;text-transform:uppercase;position:relative;margin-bottom:12px;}
+  .countdown-grid{display:flex;justify-content:center;gap:10px;position:relative;flex-wrap:wrap;}
+  .countdown-unit{
+    background:rgba(255,255,255,0.1);border-radius:12px;padding:10px 6px;min-width:64px;flex:1;max-width:78px;
+  }
+  .countdown-num{font-family:'Fraunces',serif;font-size:28px;font-weight:600;color:#fff;line-height:1;}
+  .countdown-lbl{font-size:10px;color:var(--gold-light);text-transform:uppercase;letter-spacing:0.06em;margin-top:4px;}
+
   .balance-card{
     background:var(--maroon); border-radius:16px; padding:22px 20px; color:#fff; text-align:center;
     margin-bottom:20px; position:relative; overflow:hidden;
@@ -53,22 +63,22 @@
   .balance-amount{font-family:'Fraunces',serif;font-size:34px;font-weight:600;margin:6px 0;position:relative;}
   .balance-side{font-size:14px;opacity:0.9;position:relative;}
   .scale{
-    display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;position:relative;
+    display:flex;align-items:center;justify-content:center;gap:10px;margin-top:14px;position:relative;flex-wrap:wrap;
   }
   .scale-side{
-    flex:1;max-width:150px;background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;
+    flex:1;max-width:150px;min-width:120px;background:rgba(255,255,255,0.12);border-radius:10px;padding:10px;
   }
   .scale-side .amt{font-family:'Fraunces',serif;font-size:18px;font-weight:600;}
   .scale-side .lbl{font-size:11px;opacity:0.8;text-transform:uppercase;letter-spacing:0.05em;}
 
   .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
-  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;}
-  .stat .lbl{font-size:12px;color:var(--text-soft);margin-bottom:4px;}
-  .stat .val{font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:var(--maroon-dark);}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 10px;}
+  .stat .lbl{font-size:11px;color:var(--text-soft);margin-bottom:4px;}
+  .stat .val{font-family:'Fraunces',serif;font-size:17px;font-weight:600;color:var(--maroon-dark);}
 
   .section-title{
     font-family:'Fraunces',serif;font-size:18px;font-weight:600;color:var(--maroon-dark);
-    margin:28px 0 12px;display:flex;align-items:center;justify-content:space-between;
+    margin:28px 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
   }
   button{
     font-family:'Work Sans',sans-serif;cursor:pointer;border:none;border-radius:8px;
@@ -81,16 +91,16 @@
   .btn-danger{background:transparent;color:var(--red);border:1px solid var(--red-light);padding:6px 10px;font-size:12px;}
   .btn-danger:hover{background:var(--red-light);}
 
-  form.expense-form{
+  .expense-form{
     background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:20px;
     display:none;
   }
-  form.expense-form.open{display:block;}
+  .expense-form.open{display:block;}
   .form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;}
   .form-row > div{flex:1;min-width:140px;}
   label{font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px;}
   input,select{
-    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;
+    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:16px;
     font-family:'Work Sans',sans-serif;background:#fff;color:var(--text);
   }
   input:focus,select:focus{outline:none;border-color:var(--gold);}
@@ -116,28 +126,47 @@
   .split-bar .boy{background:#7A9FD9;}
   .split-bar .girl{background:#D97CA8;}
 
-  .split-detail{display:flex;justify-content:space-between;font-size:12px;color:var(--text-soft);}
+  .split-detail{display:flex;justify-content:space-between;font-size:12px;color:var(--text-soft);flex-wrap:wrap;gap:4px;}
   .split-detail span b{color:var(--text);}
 
   .expense-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
 
   .empty{text-align:center;color:var(--text-soft);font-size:14px;padding:40px 20px;}
-  .filters{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
+  .filters{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;}
   .filter-chip{
     padding:6px 12px;border-radius:20px;border:1px solid var(--border);font-size:12px;white-space:nowrap;
-    background:#fff;color:var(--text-soft);cursor:pointer;
+    background:#fff;color:var(--text-soft);cursor:pointer;flex-shrink:0;
   }
   .filter-chip.active{background:var(--maroon);color:#fff;border-color:var(--maroon);}
   .note{font-size:12px;color:var(--text-soft);text-align:center;margin-top:28px;}
+  .by-person-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+
+  @media (max-width: 520px){
+    body{padding:16px 12px 48px;}
+    h1{font-size:23px;}
+    .countdown-num{font-size:22px;}
+    .countdown-unit{min-width:52px;padding:8px 4px;}
+    .balance-amount{font-size:27px;}
+    .summary-grid{grid-template-columns:1fr 1fr;}
+    .summary-grid .stat:last-child{grid-column:span 2;}
+    .section-title{font-size:16px;}
+    .toggle-form-btn{width:100%;}
+    .form-row > div{min-width:100%;}
+    .by-person-grid{grid-template-columns:1fr;}
+    .expense-total{font-size:15px;}
+    .split-detail{flex-direction:column;}
+  }
 </style>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 <div class="wrap">
   <h1>Wedding expense ledger</h1>
   <div class="sub">Track spending across boy's side and girl's side, in one shared place</div>
-  <div id="weddingCounter" class="counter-card" aria-live="polite"></div>
+
+  <div class="countdown-card">
+    <div class="countdown-date" id="countdownDate">Loading…</div>
+    <div class="countdown-grid" id="countdownGrid"></div>
+  </div>
 
   <div class="balance-card">
     <div class="balance-label">Net balance</div>
@@ -145,11 +174,11 @@
     <div class="balance-side" id="netBalanceSide"></div>
     <div class="scale">
       <div class="scale-side">
-          <div class="lbl">Bhavin (groom) paid</div>
+        <div class="lbl">Bhavin (groom) paid</div>
         <div class="amt" id="boyPaidTotal">₹0</div>
       </div>
       <div class="scale-side">
-          <div class="lbl">Shweta (bride) paid</div>
+        <div class="lbl">Shweta (bride) paid</div>
         <div class="amt" id="girlPaidTotal">₹0</div>
       </div>
     </div>
@@ -163,7 +192,7 @@
 
   <div class="section-title">
     Expenses
-    <button class="btn-primary" id="toggleForm">+ Add expense</button>
+    <button class="btn-primary toggle-form-btn" id="toggleForm">+ Add expense</button>
   </div>
 
   <div class="expense-form" id="expenseForm">
@@ -225,33 +254,31 @@
 
   <div id="expenseList"></div>
 
-  <div class="section-title">By Person</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+  <div class="section-title">By person</div>
+  <div class="by-person-grid">
     <div>
-      <div class="section-title" style="margin:6px 0 10px;">Bhavin (Groom)</div>
+      <div class="section-title" style="margin:6px 0 10px;">Bhavin (groom)</div>
       <div id="groomList"></div>
     </div>
     <div>
-      <div class="section-title" style="margin:6px 0 10px;">Shweta (Bride)</div>
+      <div class="section-title" style="margin:6px 0 10px;">Shweta (bride)</div>
       <div id="brideList"></div>
     </div>
   </div>
 
   <div class="note">Data is shared — visible to anyone who opens this tracker.</div>
-  <div id="debugInfo" style="font-size:12px;color:var(--text-soft);text-align:center;margin-top:12px;"></div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
 const CATEGORIES = ["All","Venue","Photographer","Caterer","Decor","Mehendi/Sangeet","DJ/Music","Outfits","Jewelry","Invitations","Priest/Rituals","Other"];
 let expenses = [];
 let editingId = null;
 let activeFilter = "All";
 
-// ===== FIREBASE CONFIG =====
-// 1. Go to https://console.firebase.google.com -> Create project (free)
-// 2. Inside the project: Build -> Firestore Database -> Create database -> Start in test mode
-// 3. Project settings (gear icon) -> Your apps -> Web app (</>) -> register app
-// 4. Copy the firebaseConfig object it gives you and paste it below, replacing this one.
+const WEDDING_DATE = new Date('2027-02-12T00:00:00');
+
 const firebaseConfig = {
   apiKey: "AIzaSyCzAmkj-vk1Wdo8YGNwRfVxzwrBrgfdW8E",
   authDomain: "wedding-tracker-d2aab-dcac1.firebaseapp.com",
@@ -270,87 +297,71 @@ function fmt(n){
   return "₹" + n.toLocaleString('en-IN');
 }
 
-// Wedding day countdown (assumes DD/MM/YYYY -> 12 Feb 2027)
-// Countdown card renderer
-function startWeddingCountdown(){
-  const target = new Date(2027, 1, 12, 0, 0, 0); // 12 Feb 2027
-  const el = document.getElementById('weddingCounter');
-  if(!el) return;
+function updateCountdown(){
+  const now = new Date();
+  const diff = WEDDING_DATE - now;
+  const dateStr = WEDDING_DATE.toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' });
 
-  function pad(n){ return String(n).padStart(2,'0'); }
-
-  function update(){
-    const now = new Date();
-    let diff = Math.max(0, target.getTime() - now.getTime());
-    if(diff <= 0){
-      el.innerHTML = `<div class="counter-days">Wedding day — congratulations! 🎉</div>`;
-      return;
-    }
-    const days = Math.floor(diff / (1000*60*60*24));
-    diff -= days * (1000*60*60*24);
-    const hours = Math.floor(diff / (1000*60*60));
-    diff -= hours * (1000*60*60);
-    const mins = Math.floor(diff / (1000*60));
-    diff -= mins * (1000*60);
-    const secs = Math.floor(diff / 1000);
-
-    el.innerHTML = `
-      <div class="counter-days">${days} <span style="font-size:14px;opacity:0.95;">days</span></div>
-      <div class="counter-hms">${pad(hours)}:${pad(mins)}:${pad(secs)}</div>
-      <div class="counter-small">until wedding — 12 Feb 2027 &#127872;</div>
-    `;
+  if(diff <= 0){
+    document.getElementById('countdownDate').textContent = 'The big day has arrived — ' + dateStr;
+    document.getElementById('countdownGrid').innerHTML = '';
+    return;
   }
 
-  update();
-  setInterval(update, 1000);
+  document.getElementById('countdownDate').textContent = 'Counting down to ' + dateStr;
+
+  const days = Math.floor(diff / (1000*60*60*24));
+  const hours = Math.floor((diff / (1000*60*60)) % 24);
+  const mins = Math.floor((diff / (1000*60)) % 60);
+  const secs = Math.floor((diff / 1000) % 60);
+
+  const units = [
+    { v: days, l: 'Days' },
+    { v: hours, l: 'Hours' },
+    { v: mins, l: 'Mins' },
+    { v: secs, l: 'Secs' }
+  ];
+
+  document.getElementById('countdownGrid').innerHTML = units.map(u => `
+    <div class="countdown-unit">
+      <div class="countdown-num">${String(u.v).padStart(2,'0')}</div>
+      <div class="countdown-lbl">${u.l}</div>
+    </div>
+  `).join('');
 }
+updateCountdown();
+setInterval(updateCountdown, 1000);
 
 function listenToExpenses(){
   expensesRef.orderBy('createdAt', 'desc').onSnapshot(snapshot=>{
-    console.log('onSnapshot: got', snapshot.size, 'docs, metadata:', snapshot.metadata);
     expenses = snapshot.docs.map(doc=> ({ id: doc.id, ...doc.data() }));
     render();
-    const dbg = document.getElementById('debugInfo');
-    if(dbg){
-      dbg.textContent = `Docs: ${snapshot.size} · From cache: ${snapshot.metadata.fromCache} · PendingWrites: ${snapshot.metadata.hasPendingWrites}`;
-    }
   }, err=>{
     console.error('Firestore error', err);
     document.getElementById('expenseList').innerHTML =
       '<div class="empty">Could not connect. Check your Firebase config and Firestore rules.</div>';
-    const dbg = document.getElementById('debugInfo');
-    if(dbg) dbg.textContent = 'Firestore error: ' + (err.message || err);
   });
-}
-
-// Helper for debugging: force a one-time read and log results
-window.forceFetchExpenses = async function(){
-  try{
-    const snap = await expensesRef.orderBy('createdAt','desc').get();
-    console.log('forceFetchExpenses:', snap.size, snap.docs.map(d=>d.id));
-    const dbg = document.getElementById('debugInfo');
-    if(dbg) dbg.textContent = `Force fetch: ${snap.size} docs`;
-    return snap.docs.map(d=> ({ id: d.id, ...d.data() }));
-  }catch(e){
-    console.error('forceFetch error', e);
-    const dbg = document.getElementById('debugInfo');
-    if(dbg) dbg.textContent = 'Force fetch error: ' + (e.message || e);
-    throw e;
-  }
 }
 
 async function upsertExpense(id, data){
   try{
     if(id){
       await expensesRef.doc(id).set(Object.assign({}, data, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() }), { merge: true });
-      console.log('Expense updated:', id);
     } else {
-      const docRef = await expensesRef.add(Object.assign({}, data, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
-      console.log('Expense added:', docRef.id);
+      await expensesRef.add(Object.assign({}, data, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
     }
   }catch(e){
     console.error('Save error', e);
     alert('Could not save. Check your Firebase config and Firestore rules.');
+  }
+}
+
+async function deleteExpense(id){
+  try{
+    await expensesRef.doc(id).delete();
+  }catch(e){
+    console.error('Delete error', e);
+    alert('Could not delete. Check your Firebase config and Firestore rules.');
   }
 }
 
@@ -378,6 +389,12 @@ function renderFilters(){
     chip.onclick = ()=>{ activeFilter = cat; render(); };
     el.appendChild(chip);
   });
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 
 function expenseCardHtml(e, c){
@@ -450,72 +467,49 @@ function render(){
 
   if(filtered.length===0){
     list.innerHTML = '<div class="empty">No expenses yet. Add your first one above.</div>';
-    return;
+  } else {
+    filtered.forEach(e=>{
+      const c = computeExpense(e);
+      const card = document.createElement('div');
+      card.className = 'expense-card';
+      card.innerHTML = expenseCardHtml(e, c);
+      list.appendChild(card);
+    });
   }
 
-  // Render main expense list
-  filtered.forEach(e=>{
-    const c = computeExpense(e);
-    const card = document.createElement('div');
-    card.className = 'expense-card';
-    card.innerHTML = expenseCardHtml(e, c);
-    list.appendChild(card);
-  });
-
-  // Attach handlers for main list
   list.querySelectorAll('[data-edit]').forEach(btn=> btn.onclick = ()=> openEdit(btn.getAttribute('data-edit')));
   list.querySelectorAll('[data-del]').forEach(btn=> btn.onclick = ()=> deleteExpense(btn.getAttribute('data-del')));
 
-  // Populate Groom (Bhavin) and Bride (Shweta) lists
   const groomEl = document.getElementById('groomList');
   const brideEl = document.getElementById('brideList');
   groomEl.innerHTML = '';
   brideEl.innerHTML = '';
 
-  const groomItems = filtered.filter(e => {
-    const cc = computeExpense(e);
-    return (e.boyPaid > 0) || (cc.boyOwed > 0.5);
+  const groomItems = filtered.filter(e => { const cc = computeExpense(e); return (e.boyPaid > 0) || (cc.boyOwed > 0.5); });
+  const brideItems = filtered.filter(e => { const cc = computeExpense(e); return (e.girlPaid > 0) || (cc.girlOwed > 0.5); });
+
+  groomEl.innerHTML = groomItems.length===0 ? '<div class="empty">No items for Bhavin.</div>' : '';
+  brideEl.innerHTML = brideItems.length===0 ? '<div class="empty">No items for Shweta.</div>' : '';
+
+  groomItems.forEach(e=>{
+    const c = computeExpense(e);
+    const card = document.createElement('div');
+    card.className = 'expense-card';
+    card.innerHTML = expenseCardHtml(e, c);
+    groomEl.appendChild(card);
   });
-  const brideItems = filtered.filter(e => {
-    const cc = computeExpense(e);
-    return (e.girlPaid > 0) || (cc.girlOwed > 0.5);
+  brideItems.forEach(e=>{
+    const c = computeExpense(e);
+    const card = document.createElement('div');
+    card.className = 'expense-card';
+    card.innerHTML = expenseCardHtml(e, c);
+    brideEl.appendChild(card);
   });
 
-  if(groomItems.length===0){
-    groomEl.innerHTML = '<div class="empty">No items for Bhavin.</div>';
-  } else {
-    groomItems.forEach(e=>{
-      const c = computeExpense(e);
-      const card = document.createElement('div');
-      card.className = 'expense-card';
-      card.innerHTML = expenseCardHtml(e, c);
-      groomEl.appendChild(card);
-    });
-  }
-
-  if(brideItems.length===0){
-    brideEl.innerHTML = '<div class="empty">No items for Shweta.</div>';
-  } else {
-    brideItems.forEach(e=>{
-      const c = computeExpense(e);
-      const card = document.createElement('div');
-      card.className = 'expense-card';
-      card.innerHTML = expenseCardHtml(e, c);
-      brideEl.appendChild(card);
-    });
-  }
-
-  // Attach edit/delete handlers for new lists as well
   [groomEl, brideEl].forEach(container=>{
     container.querySelectorAll('[data-edit]').forEach(btn=> btn.onclick = ()=> openEdit(btn.getAttribute('data-edit')));
     container.querySelectorAll('[data-del]').forEach(btn=> btn.onclick = ()=> deleteExpense(btn.getAttribute('data-del')));
   });
-}
-
-function escapeHtml(s){
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
 }
 
 function openEdit(id){
@@ -532,15 +526,6 @@ function openEdit(id){
   document.getElementById('saveBtn').textContent = 'Update expense';
   document.getElementById('expenseForm').classList.add('open');
   window.scrollTo({top:0, behavior:'smooth'});
-}
-
-async function deleteExpense(id){
-  try{
-    await expensesRef.doc(id).delete();
-  }catch(e){
-    console.error('Delete error', e);
-    alert('Could not delete. Check your Firebase config and Firestore rules.');
-  }
 }
 
 function resetForm(){
@@ -560,6 +545,7 @@ document.getElementById('toggleForm').onclick = ()=>{
   const opening = !form.classList.contains('open');
   if(opening) resetForm();
   form.classList.toggle('open');
+  if(opening) form.scrollIntoView({behavior:'smooth', block:'start'});
 };
 document.getElementById('cancelForm').onclick = ()=>{
   document.getElementById('expenseForm').classList.remove('open');
@@ -578,20 +564,14 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
   if(editingId){
     await upsertExpense(editingId, { category, vendor, total, splitBoy, boyPaid, girlPaid, notes });
   } else {
-    await upsertExpense(null, {
-      category, vendor, total, splitBoy, boyPaid, girlPaid, notes
-    });
+    await upsertExpense(null, { category, vendor, total, splitBoy, boyPaid, girlPaid, notes });
   }
-
-  console.log('Save complete — check Firebase console if item does not persist.');
 
   document.getElementById('expenseForm').classList.remove('open');
   resetForm();
 });
 
 listenToExpenses();
-// start wedding countdown
-startWeddingCountdown();
 </script>
 </body>
 </html>
