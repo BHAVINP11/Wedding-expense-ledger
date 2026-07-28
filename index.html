@@ -228,6 +228,7 @@
   </div>
 
   <div class="note">Data is shared — visible to anyone who opens this tracker.</div>
+  <div id="debugInfo" style="font-size:12px;color:var(--text-soft);text-align:center;margin-top:12px;"></div>
 </div>
 
 <script>
@@ -261,13 +262,36 @@ function fmt(n){
 
 function listenToExpenses(){
   expensesRef.orderBy('createdAt', 'desc').onSnapshot(snapshot=>{
+    console.log('onSnapshot: got', snapshot.size, 'docs, metadata:', snapshot.metadata);
     expenses = snapshot.docs.map(doc=> ({ id: doc.id, ...doc.data() }));
     render();
+    const dbg = document.getElementById('debugInfo');
+    if(dbg){
+      dbg.textContent = `Docs: ${snapshot.size} · From cache: ${snapshot.metadata.fromCache} · PendingWrites: ${snapshot.metadata.hasPendingWrites}`;
+    }
   }, err=>{
     console.error('Firestore error', err);
     document.getElementById('expenseList').innerHTML =
       '<div class="empty">Could not connect. Check your Firebase config and Firestore rules.</div>';
+    const dbg = document.getElementById('debugInfo');
+    if(dbg) dbg.textContent = 'Firestore error: ' + (err.message || err);
   });
+}
+
+// Helper for debugging: force a one-time read and log results
+window.forceFetchExpenses = async function(){
+  try{
+    const snap = await expensesRef.orderBy('createdAt','desc').get();
+    console.log('forceFetchExpenses:', snap.size, snap.docs.map(d=>d.id));
+    const dbg = document.getElementById('debugInfo');
+    if(dbg) dbg.textContent = `Force fetch: ${snap.size} docs`;
+    return snap.docs.map(d=> ({ id: d.id, ...d.data() }));
+  }catch(e){
+    console.error('forceFetch error', e);
+    const dbg = document.getElementById('debugInfo');
+    if(dbg) dbg.textContent = 'Force fetch error: ' + (e.message || e);
+    throw e;
+  }
 }
 
 async function upsertExpense(id, data){
