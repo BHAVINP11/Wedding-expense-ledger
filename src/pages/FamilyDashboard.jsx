@@ -14,7 +14,10 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore'
+import DashboardHeader from '../components/DashboardHeader'
+import SummaryCard from '../components/SummaryCard'
 
 const CATEGORIES = [
   'All',
@@ -35,6 +38,11 @@ const ROOM_CAPACITY = {
   single: 1,
   double: 2,
   suite: 3,
+}
+
+const OWNER_GUEST_TITLES = {
+  Bhavin: 'Groom Side Guests',
+  Dhaval: 'Bride Side Guests',
 }
 
 function fmt(n) {
@@ -325,12 +333,18 @@ export default function FamilyDashboard() {
   useEffect(() => {
     if (!isAuthed()) return
 
+    const currentUser = currentFamilyUser()
+
     const expenseUnsub = onSnapshot(
       query(collection(db, 'expenses'), orderBy('createdAt', 'desc')),
       snapshot => setExpenses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     )
     const guestUnsub = onSnapshot(
-      query(collection(db, 'guests'), orderBy('name', 'asc')),
+      query(
+        collection(db, 'guests'),
+        where('ownerId', '==', currentUser),
+        orderBy('name', 'asc')
+      ),
       snapshot => setGuests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     )
     const roomUnsub = onSnapshot(
@@ -382,17 +396,29 @@ export default function FamilyDashboard() {
     return counts
   }, [guests])
 
+  const currentUser = currentFamilyUser()
+  const guestSectionTitle = OWNER_GUEST_TITLES[currentUser] || 'Private Guests'
   const unassignedGuests = useMemo(() => {
     const assigned = new Set(rooms.flatMap(room => room.assignedGuestIds || []))
     return guests.filter(g => !assigned.has(g.id))
   }, [guests, rooms])
 
   const roomData = useMemo(
-    () => rooms.map(room => ({
-      ...room,
-      assignedGuests: (room.assignedGuestIds || []).map(id => guests.find(g => g.id === id)).filter(Boolean),
-      capacity: ROOM_CAPACITY[room.type] || 1,
-    })),
+    () => rooms.map(room => {
+      const assignedGuests = (room.assignedGuestIds || [])
+        .map(id => guests.find(g => g.id === id))
+        .filter(Boolean)
+      const hiddenAssignedCount = (room.assignedGuestIds || []).filter(
+        id => !assignedGuests.some(g => g.id === id)
+      ).length
+      return {
+        ...room,
+        assignedGuests,
+        hiddenAssignedCount,
+        assignedCount: room.assignedGuestIds?.length || 0,
+        capacity: ROOM_CAPACITY[room.type] || 1,
+      }
+    }),
     [rooms, guests]
   )
 
@@ -429,15 +455,21 @@ export default function FamilyDashboard() {
 
   const saveGuest = async data => {
     try {
+      const ownerId = currentFamilyUser()
+      const ownerName = ownerId
       if (editingGuest) {
         await setDoc(doc(db, 'guests', editingGuest.id), {
           ...data,
+          ownerId,
+          ownerName,
           updatedAt: serverTimestamp(),
         }, { merge: true })
         setEditingGuest(null)
       } else {
         await addDoc(collection(db, 'guests'), {
           ...data,
+          ownerId,
+          ownerName,
           createdAt: serverTimestamp(),
         })
       }
@@ -449,6 +481,9 @@ export default function FamilyDashboard() {
 
   const removeGuest = async id => {
     if (!confirm('Delete this guest?')) return
+    const currentUser = currentFamilyUser()
+    const guest = guests.find(g => g.id === id)
+    if (!guest || guest.ownerId !== currentUser) return
     await deleteDoc(doc(db, 'guests', id))
   }
 
@@ -490,21 +525,25 @@ export default function FamilyDashboard() {
     })
   }
 
-  const currentUser = currentFamilyUser()
+  const totalExpenses = expenses.length
+  const totalGuests = guestCounts.total
+  const totalRooms = roomData.length
+  const totalPendingBalance = fmt(
+    expenses.reduce((sum, e) => {
+      const paid = (e.boyPaid || 0) + (e.girlPaid || 0)
+      return sum + Math.max(0, (e.total || 0) - paid)
+    }, 0)
+  )
 
   return (
     <main className="family-dashboard wrap">
-      <div className="dashboard-header">
-        <div>
-          <p className="dashboard-subtitle">Private family dashboard</p>
-          <h1>Family dashboard</h1>
-          <p className="dashboard-note">Welcome, {currentUser}. Use this space to manage expenses, guest details, and rooms.</p>
-        </div>
-        <div>
-          <button className="btn-ghost" onClick={handleLogout}>
-            Log out
-          </button>
-        </div>
+      <DashboardHeader currentUser={currentUser} onLogout={handleLogout} />
+
+      <div className="dashboard-summary-grid">
+        <SummaryCard label="Total expenses" value={totalExpenses} accent />
+        <SummaryCard label="Pending balance" value={totalPendingBalance} />
+        <SummaryCard label="Guest count" value={totalGuests} />
+        <SummaryCard label="Rooms reserved" value={totalRooms} />
       </div>
 
       <div className="dashboard-tabs" role="tablist">
@@ -593,8 +632,11 @@ export default function FamilyDashboard() {
 
       {tab === 'guests' && (
         <section className="section-panel">
-          <div className="section-title">
-            Guests
+              <div className="section-title section-title-with-badge">
+            <div className="guest-heading">
+              <h2>{guestSectionTitle}</h2>
+              <span className="private-badge">Private List</span>
+            </div>
             <button
               className="btn-primary"
               onClick={() => {
@@ -767,7 +809,7 @@ export default function FamilyDashboard() {
                   <div className="room-top">
                     <div>
                       <div className="room-title">Room {room.roomNumber}</div>
-                      <div className="room-meta">{room.type} · {room.assignedGuests.length}/{room.capacity} filled</div>
+                      <div className="room-meta">{room.type} · {room.assignedCount}/{room.capacity} filled</div>
                     </div>
                     <button
                       className="btn-ghost"
@@ -783,21 +825,26 @@ export default function FamilyDashboard() {
                     </button>
                   </div>
                   <div className="room-body">
-                    {room.assignedGuests.length === 0 ? (
+                    {room.assignedCount === 0 ? (
                       <div className="small-help">No guests assigned yet.</div>
                     ) : (
-                      room.assignedGuests.map(guest => (
-                        <div key={guest.id} className="assigned-guest">
-                          <span>{guest.name} ({guest.side})</span>
-                          <button
-                            className="btn-danger"
-                            type="button"
-                            onClick={() => unassignFromRoom(room.id, guest.id)}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))
+                      <>
+                        {room.assignedGuests.length === 0 && (
+                          <div className="small-help">Assigned guests from another family are hidden.</div>
+                        )}
+                        {room.assignedGuests.map(guest => (
+                          <div key={guest.id} className="assigned-guest">
+                            <span>{guest.name} ({guest.side})</span>
+                            <button
+                              className="btn-danger"
+                              type="button"
+                              onClick={() => unassignFromRoom(room.id, guest.id)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </>
                     )}
                   </div>
                   {room.notes && <div className="room-notes">Notes: {room.notes}</div>}
