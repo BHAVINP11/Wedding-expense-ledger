@@ -273,9 +273,11 @@ function listenToExpenses(){
 async function upsertExpense(id, data){
   try{
     if(id){
-      await expensesRef.doc(id).set(data, { merge: true });
+      await expensesRef.doc(id).set(Object.assign({}, data, { updatedAt: firebase.firestore.FieldValue.serverTimestamp() }), { merge: true });
+      console.log('Expense updated:', id);
     } else {
-      await expensesRef.add(data);
+      const docRef = await expensesRef.add(Object.assign({}, data, { createdAt: firebase.firestore.FieldValue.serverTimestamp() }));
+      console.log('Expense added:', docRef.id);
     }
   }catch(e){
     console.error('Save error', e);
@@ -508,10 +510,11 @@ document.getElementById('saveBtn').addEventListener('click', async ()=>{
     await upsertExpense(editingId, { category, vendor, total, splitBoy, boyPaid, girlPaid, notes });
   } else {
     await upsertExpense(null, {
-      category, vendor, total, splitBoy, boyPaid, girlPaid, notes,
-      createdAt: Date.now()
+      category, vendor, total, splitBoy, boyPaid, girlPaid, notes
     });
   }
+
+  console.log('Save complete — check Firebase console if item does not persist.');
 
   document.getElementById('expenseForm').classList.remove('open');
   resetForm();
