@@ -207,6 +207,8 @@ function ExpenseForm({ onCancel, onSave, initial }) {
 
 function GuestForm({ initial, functions, onCancel, onSave }) {
   const [name, setName] = useState(initial?.name || '')
+  const [headOfFamily, setHeadOfFamily] = useState(initial?.headOfFamily || '')
+  const [guestCount, setGuestCount] = useState(initial?.guestCount || 1)
   const [side, setSide] = useState(initial?.side || 'Bhavin')
   const [phone, setPhone] = useState(initial?.phone || '')
   const [rsvpStatus, setRsvpStatus] = useState(initial?.rsvpStatus || 'pending')
@@ -216,6 +218,8 @@ function GuestForm({ initial, functions, onCancel, onSave }) {
   useEffect(() => {
     if (initial) {
       setName(initial.name || '')
+      setHeadOfFamily(initial.headOfFamily || '')
+      setGuestCount(initial.guestCount || 1)
       setSide(initial.side || 'Bhavin')
       setPhone(initial.phone || '')
       setRsvpStatus(initial.rsvpStatus || 'pending')
@@ -235,6 +239,8 @@ function GuestForm({ initial, functions, onCancel, onSave }) {
   const save = () => {
     onSave({
       name: name.trim(),
+      headOfFamily: headOfFamily.trim(),
+      guestCount: Number(guestCount) || 1,
       side,
       phone: phone.trim(),
       rsvpStatus,
@@ -249,6 +255,16 @@ function GuestForm({ initial, functions, onCancel, onSave }) {
         <div>
           <label>Name</label>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Guest name" />
+        </div>
+        <div>
+          <label>Head of family</label>
+          <input value={headOfFamily} onChange={e => setHeadOfFamily(e.target.value)} placeholder="Head of family name" />
+        </div>
+      </div>
+      <div className="form-row">
+        <div>
+          <label>Guest count</label>
+          <input type="number" min={1} value={guestCount} onChange={e => setGuestCount(e.target.value)} placeholder="2" />
         </div>
         <div>
           <label>Side</label>
@@ -340,12 +356,13 @@ export default function FamilyDashboard() {
       snapshot => setExpenses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     )
     const guestUnsub = onSnapshot(
-      query(
-        collection(db, 'guests'),
-        where('ownerId', '==', currentUser),
-        orderBy('name', 'asc')
-      ),
-      snapshot => setGuests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+      query(collection(db, 'guests'), where('ownerId', '==', currentUser)),
+      snapshot => {
+        const guestsData = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+        setGuests(guestsData)
+      }
     )
     const roomUnsub = onSnapshot(
       query(collection(db, 'rooms'), orderBy('roomNumber', 'asc')),
@@ -379,7 +396,8 @@ export default function FamilyDashboard() {
 
   const guestCounts = useMemo(() => {
     const counts = {
-      total: guests.length,
+      total: 0,
+      entries: guests.length,
       confirmed: 0,
       pending: 0,
       declined: 0,
@@ -387,6 +405,8 @@ export default function FamilyDashboard() {
       dhaval: 0,
     }
     guests.forEach(g => {
+      const countValue = Number(g.guestCount) || 1
+      counts.total += countValue
       if (g.rsvpStatus === 'confirmed') counts.confirmed += 1
       else if (g.rsvpStatus === 'pending') counts.pending += 1
       else if (g.rsvpStatus === 'declined') counts.declined += 1
@@ -472,6 +492,7 @@ export default function FamilyDashboard() {
           ownerName,
           createdAt: serverTimestamp(),
         })
+        setEditingGuest(null)
       }
       setShowGuestForm(false)
     } catch (error) {
@@ -654,6 +675,10 @@ export default function FamilyDashboard() {
               <div className="stat-value">{guestCounts.total}</div>
             </div>
             <div className="stat-panel">
+              <div className="stat-label">Family groups</div>
+              <div className="stat-value">{guestCounts.entries}</div>
+            </div>
+            <div className="stat-panel">
               <div className="stat-label">Confirmed</div>
               <div className="stat-value">{guestCounts.confirmed}</div>
             </div>
@@ -722,6 +747,10 @@ export default function FamilyDashboard() {
                     <div className="guest-meta">
                       {guest.side} · {guest.phone || 'No phone'} · {guest.rsvpStatus}
                     </div>
+                    {guest.headOfFamily && (
+                      <div className="guest-family-head">Head of family: {guest.headOfFamily}</div>
+                    )}
+                    <div className="guest-count">Family size: {Number(guest.guestCount) || 1}</div>
                     {guest.notes && <div className="guest-notes">{guest.notes}</div>}
                     {guest.functionsAttending?.length > 0 && (
                       <div className="guest-functions">

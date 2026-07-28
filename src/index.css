@@ -196,6 +196,8 @@ input:focus,select:focus{outline:none;border-color:var(--gold)}
 .guest-row{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
 .guest-name{font-weight:600;margin-bottom:6px}
 .guest-meta{font-size:13px;color:var(--text-soft);line-height:1.5}
+.guest-family-head,.guest-count{font-size:13px;color:var(--text-soft);margin-top:6px}
+.guest-count{font-weight:600;color:var(--maroon-dark)}
 .guest-notes{margin-top:10px;font-size:13px;color:var(--text-soft)}
 .guest-functions{margin-top:10px;font-size:13px;color:var(--text-soft)}
 .guest-actions{display:flex;gap:8px;flex-shrink:0;align-items:center}
