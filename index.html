@@ -215,6 +215,18 @@
 
   <div id="expenseList"></div>
 
+  <div class="section-title">By Person</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+    <div>
+      <div class="section-title" style="margin:6px 0 10px;">Bhavin (Groom)</div>
+      <div id="groomList"></div>
+    </div>
+    <div>
+      <div class="section-title" style="margin:6px 0 10px;">Shweta (Bride)</div>
+      <div id="brideList"></div>
+    </div>
+  </div>
+
   <div class="note">Data is shared — visible to anyone who opens this tracker.</div>
 </div>
 
@@ -297,6 +309,34 @@ function renderFilters(){
   });
 }
 
+function expenseCardHtml(e, c){
+  const boyPct = e.total>0 ? (e.boyPaid/e.total*100) : 0;
+  const girlPct = e.total>0 ? (e.girlPaid/e.total*100) : 0;
+  return `
+    <div class="expense-top">
+      <div>
+        <div class="expense-title">${escapeHtml(e.vendor || e.category)}</div>
+        <div class="expense-cat">${e.category}</div>
+        <span class="badge ${c.status}">${c.status === 'paid' ? 'Fully paid' : c.status === 'partial' ? 'Partially paid' : 'Pending'}</span>
+      </div>
+      <div class="expense-total">${fmt(e.total)}</div>
+    </div>
+    <div class="split-bar">
+      <div class="boy" style="width:${boyPct}%"></div>
+      <div class="girl" style="width:${girlPct}%"></div>
+    </div>
+    <div class="split-detail">
+      <span>Bhavin: <b>${fmt(e.boyPaid)}</b> paid${c.boyOwed>0.5 ? ` · <b>${fmt(c.boyOwed)}</b> due` : ''}</span>
+      <span>Shweta: <b>${fmt(e.girlPaid)}</b> paid${c.girlOwed>0.5 ? ` · <b>${fmt(c.girlOwed)}</b> due` : ''}</span>
+    </div>
+    ${e.notes ? `<div style="font-size:12px;color:var(--text-soft);margin-top:8px;">${escapeHtml(e.notes)}</div>` : ''}
+    <div class="expense-footer">
+      <button class="btn-ghost" data-edit="${e.id}">Edit</button>
+      <button class="btn-danger" data-del="${e.id}">Delete</button>
+    </div>
+  `;
+}
+
 function render(){
   renderFilters();
 
@@ -342,43 +382,62 @@ function render(){
     return;
   }
 
+  // Render main expense list
   filtered.forEach(e=>{
     const c = computeExpense(e);
-    const boyPct = e.total>0 ? (e.boyPaid/e.total*100) : 0;
-    const girlPct = e.total>0 ? (e.girlPaid/e.total*100) : 0;
     const card = document.createElement('div');
     card.className = 'expense-card';
-    card.innerHTML = `
-      <div class="expense-top">
-        <div>
-          <div class="expense-title">${escapeHtml(e.vendor || e.category)}</div>
-          <div class="expense-cat">${e.category}</div>
-          <span class="badge ${c.status}">${c.status === 'paid' ? 'Fully paid' : c.status === 'partial' ? 'Partially paid' : 'Pending'}</span>
-        </div>
-        <div class="expense-total">${fmt(e.total)}</div>
-      </div>
-      <div class="split-bar">
-        <div class="boy" style="width:${boyPct}%"></div>
-        <div class="girl" style="width:${girlPct}%"></div>
-      </div>
-      <div class="split-detail">
-        <span>Boy's side: <b>${fmt(e.boyPaid)}</b> paid${c.boyOwed>0.5 ? ` · <b>${fmt(c.boyOwed)}</b> due` : ''}</span>
-        <span>Girl's side: <b>${fmt(e.girlPaid)}</b> paid${c.girlOwed>0.5 ? ` · <b>${fmt(c.girlOwed)}</b> due` : ''}</span>
-      </div>
-      ${e.notes ? `<div style="font-size:12px;color:var(--text-soft);margin-top:8px;">${escapeHtml(e.notes)}</div>` : ''}
-      <div class="expense-footer">
-        <button class="btn-ghost" data-edit="${e.id}">Edit</button>
-        <button class="btn-danger" data-del="${e.id}">Delete</button>
-      </div>
-    `;
+    card.innerHTML = expenseCardHtml(e, c);
     list.appendChild(card);
   });
 
-  list.querySelectorAll('[data-edit]').forEach(btn=>{
-    btn.onclick = ()=> openEdit(btn.getAttribute('data-edit'));
+  // Attach handlers for main list
+  list.querySelectorAll('[data-edit]').forEach(btn=> btn.onclick = ()=> openEdit(btn.getAttribute('data-edit')));
+  list.querySelectorAll('[data-del]').forEach(btn=> btn.onclick = ()=> deleteExpense(btn.getAttribute('data-del')));
+
+  // Populate Groom (Bhavin) and Bride (Shweta) lists
+  const groomEl = document.getElementById('groomList');
+  const brideEl = document.getElementById('brideList');
+  groomEl.innerHTML = '';
+  brideEl.innerHTML = '';
+
+  const groomItems = filtered.filter(e => {
+    const cc = computeExpense(e);
+    return (e.boyPaid > 0) || (cc.boyOwed > 0.5);
   });
-  list.querySelectorAll('[data-del]').forEach(btn=>{
-    btn.onclick = ()=> deleteExpense(btn.getAttribute('data-del'));
+  const brideItems = filtered.filter(e => {
+    const cc = computeExpense(e);
+    return (e.girlPaid > 0) || (cc.girlOwed > 0.5);
+  });
+
+  if(groomItems.length===0){
+    groomEl.innerHTML = '<div class="empty">No items for Bhavin.</div>';
+  } else {
+    groomItems.forEach(e=>{
+      const c = computeExpense(e);
+      const card = document.createElement('div');
+      card.className = 'expense-card';
+      card.innerHTML = expenseCardHtml(e, c);
+      groomEl.appendChild(card);
+    });
+  }
+
+  if(brideItems.length===0){
+    brideEl.innerHTML = '<div class="empty">No items for Shweta.</div>';
+  } else {
+    brideItems.forEach(e=>{
+      const c = computeExpense(e);
+      const card = document.createElement('div');
+      card.className = 'expense-card';
+      card.innerHTML = expenseCardHtml(e, c);
+      brideEl.appendChild(card);
+    });
+  }
+
+  // Attach edit/delete handlers for new lists as well
+  [groomEl, brideEl].forEach(container=>{
+    container.querySelectorAll('[data-edit]').forEach(btn=> btn.onclick = ()=> openEdit(btn.getAttribute('data-edit')));
+    container.querySelectorAll('[data-del]').forEach(btn=> btn.onclick = ()=> deleteExpense(btn.getAttribute('data-del')));
   });
 }
 
