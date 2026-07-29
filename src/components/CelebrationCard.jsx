@@ -32,8 +32,6 @@ export default function CelebrationCard({ event, expanded, onToggle }) {
           <div className="celebration-card-header-copy">
             <div className="celebration-card-meta">
               <span>{date}</span>
-              <span>•</span>
-              <span>{time}</span>
             </div>
             <h3 className="celebration-card-title">{title}</h3>
             <p className="celebration-card-text">{description}</p>
