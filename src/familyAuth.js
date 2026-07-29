@@ -1,6 +1,6 @@
 const FAMILY_USERS = [
-  { username: 'Bhavin', password: 'Bhavin@1227' },
-  { username: 'Dhaval', password: 'Dhaval@1227' },
+  { username: 'Bhavin', password: 'Bhavin@1227#' },
+  { username: 'Dhaval', password: 'Dhaval@1227#' },
 ]
 
 const STORAGE_KEY = 'family_auth'
