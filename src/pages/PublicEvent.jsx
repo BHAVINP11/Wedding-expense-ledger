@@ -3,6 +3,10 @@ import { collection, orderBy, query, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useCountdown } from '../hooks/useCountdown'
 import CelebrationCard from '../components/CelebrationCard'
+import VenueCard from '../components/VenueCard'
+import MusicPlayer from '../components/MusicPlayer'
+import ScratchReveal from '../components/ScratchReveal'
+import WeatherForecast from '../components/WeatherForecast'
 import couplePhoto from '../assets/couple-photo.jpg'
 
 const localAssetModules = import.meta.glob('../assets/*.{jpg,jpeg,png}', { eager: true })
@@ -189,10 +193,13 @@ export default function PublicEvent() {
 
   return (
     <main className="public-page wrap">
+      <MusicPlayer />
       <section className="public-hero">
         <div className="hero-photo-block">
           {couplePhoto ? (
-            <img src={couplePhoto} alt="Bhavin and Shweta" className="couple-photo" />
+            <ScratchReveal caption="Bhavin & Shweta">
+              <img src={couplePhoto} alt="Bhavin and Shweta" className="couple-photo" />
+            </ScratchReveal>
           ) : (
             <div className="photo-placeholder" aria-label="Bhavin and Shweta">
               <span>B&amp;S</span>
@@ -229,6 +236,8 @@ export default function PublicEvent() {
           <p>Explore each event, discover the venue, and experience every beautiful moment before you arrive.</p>
         </div>
 
+        <WeatherForecast />
+
         <div className="celebration-list">
           {loading && functions.length === 0 ? (
             <div className="schedule-empty">Loading celebration journey...</div>
@@ -243,6 +252,16 @@ export default function PublicEvent() {
             ))
           )}
         </div>
+        {/* Consolidated venue cards (deduplicated by placeId) */}
+        {(() => {
+          const byPlace = {}
+          events.forEach(ev => {
+            const pid = ev.placeId || ev.venue || ev.id
+            if (!byPlace[pid]) byPlace[pid] = { ...ev }
+          })
+          const venues = Object.values(byPlace)
+          return venues.map(v => <VenueCard key={v.placeId || v.id} venue={v} />)
+        })()}
       </section>
     </main>
   )

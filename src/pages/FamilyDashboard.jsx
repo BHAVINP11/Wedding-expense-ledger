@@ -564,7 +564,6 @@ export default function FamilyDashboard() {
         <SummaryCard label="Total expenses" value={totalExpenses} accent />
         <SummaryCard label="Pending balance" value={totalPendingBalance} />
         <SummaryCard label="Guest count" value={totalGuests} />
-        <SummaryCard label="Rooms reserved" value={totalRooms} />
       </div>
 
       <div className="dashboard-tabs" role="tablist">

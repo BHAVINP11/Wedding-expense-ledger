@@ -1,7 +1,5 @@
 import React from 'react'
-import VenueSection from './VenueSection'
-import GoogleMap from './GoogleMap'
-import VenueGallery from './VenueGallery'
+import ScratchReveal from './ScratchReveal'
 import InfoChip from './InfoChip'
 
 export default function CelebrationCard({ event, expanded, onToggle }) {
@@ -39,7 +37,7 @@ export default function CelebrationCard({ event, expanded, onToggle }) {
             </div>
             <h3 className="celebration-card-title">{title}</h3>
             <p className="celebration-card-text">{description}</p>
-            <div className="celebration-card-venue">{venue}</div>
+            <div className="dress-badge">Reveal soon 👗</div>
           </div>
         </div>
         <div className={`celebration-card-chevron ${expanded ? 'expanded' : ''}`}>
@@ -56,8 +54,6 @@ export default function CelebrationCard({ event, expanded, onToggle }) {
                 <p>{description}</p>
               </section>
 
-              <VenueSection venueName={venue} address={address} googleMapLink={googleMapLink} />
-
               <section className="expanded-block quick-info-block">
                 <div className="expanded-block-label">Quick Information</div>
                 <div className="info-chip-row">
@@ -67,9 +63,15 @@ export default function CelebrationCard({ event, expanded, onToggle }) {
                 </div>
               </section>
 
-              <GoogleMap googleMapEmbedUrl={googleMapEmbedUrl} />
-
-              <VenueGallery venueName={venue} placeId={placeId} photos={photos} googlePhotosUrl={googlePhotosUrl} />
+              <section className="expanded-block dress-code-block">
+                <div className="expanded-block-label">Dress Code</div>
+                <div className="dress-card-row">
+                  <div className="dress-card placeholder">
+                    <div className="dress-badge">Reveal soon 👗</div>
+                    <div className="dress-card-text">Revealing soon!</div>
+                  </div>
+                </div>
+              </section>
 
               <div className="expanded-actions">
                 <a href={googleMapLink} target="_blank" rel="noreferrer" className="venue-button primary">
