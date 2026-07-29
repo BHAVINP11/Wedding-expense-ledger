@@ -153,6 +153,25 @@ input:focus,select:focus{outline:none;border-color:var(--gold)}
 .music-toggle{position:fixed;right:18px;bottom:18px;width:54px;height:54px;border-radius:999px;background:var(--maroon);display:flex;align-items:center;justify-content:center;box-shadow:0 12px 28px rgba(107,30,60,0.18);border:3px solid rgba(255,255,255,0.06);z-index:999}
 .music-toggle.muted{background:rgba(107,30,60,0.8)}
 
+/* Playful extras */
+.dont-press-button{position:fixed;right:18px;bottom:86px;background:linear-gradient(135deg,#6B1E3C,#C9932E);color:#fff;border-radius:999px;padding:10px 14px;font-size:13px;font-weight:700;box-shadow:0 8px 22px rgba(107,30,60,0.12);border:2px solid rgba(255,255,255,0.08);cursor:pointer;z-index:1000;display:flex;align-items:center;gap:8px}
+.dont-press-button .emoji{font-size:14px}
+.dont-press-button:hover{transform:translateY(-3px);animation:button-wiggle 600ms ease}
+@keyframes button-wiggle{0%{transform:translateY(-3px) rotate(-2deg)}50%{transform:translateY(-2px) rotate(2deg)}100%{transform:translateY(-3px) rotate(-1deg)}}
+.dont-press-toast{position:fixed;right:18px;bottom:148px;background:#fff;padding:10px 14px;border-radius:12px;color:var(--maroon);box-shadow:0 12px 36px rgba(107,30,60,0.12);z-index:1100;border:1px solid rgba(107,30,60,0.06)}
+
+/* Petal/heart trail */
+.petal{position:fixed;width:16px;height:16px;pointer-events:none;opacity:0.9;transform-origin:center center}
+.petal svg{width:100%;height:100%;display:block}
+.petal-1{animation:petal-fall 1200ms linear forwards}
+.petal-2{animation:petal-fall 1100ms linear forwards}
+.petal-3{animation:petal-fall 1300ms linear forwards}
+@keyframes petal-fall{0%{transform:translateY(0) rotate(0) scale(1);opacity:0.95}50%{opacity:0.9}100%{transform:translateY(24px) rotate(30deg) scale(0.9);opacity:0}}
+
+.petal svg path{fill:#C9932E;opacity:0.95}
+.petal-2 svg path{fill:#6B1E3C}
+.petal-3 svg path{fill:#FFF6EE}
+
 /* Weather */
 .weather-section{margin:18px 0}
 .weather-list{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}

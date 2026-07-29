@@ -7,6 +7,7 @@ import VenueCard from '../components/VenueCard'
 import MusicPlayer from '../components/MusicPlayer'
 import ScratchReveal from '../components/ScratchReveal'
 import WeatherForecast from '../components/WeatherForecast'
+import PlayfulExtras, { DontPressButton, PetalTrail } from '../components/PlayfulExtras'
 import couplePhoto from '../assets/couple-photo.jpg'
 
 const localAssetModules = import.meta.glob('../assets/*.{jpg,jpeg,png}', { eager: true })
@@ -194,6 +195,8 @@ export default function PublicEvent() {
   return (
     <main className="public-page wrap">
       <MusicPlayer />
+      <DontPressButton />
+      <PetalTrail />
       <section className="public-hero">
         <div className="hero-photo-block">
           {couplePhoto ? (
