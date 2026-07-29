@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import DashboardHeader from '../components/DashboardHeader'
 import SummaryCard from '../components/SummaryCard'
+import NotifyGuests from '../components/NotifyGuests'
 
 const CATEGORIES = [
   'All',
@@ -567,14 +568,14 @@ export default function FamilyDashboard() {
       </div>
 
       <div className="dashboard-tabs" role="tablist">
-        {['expenses', 'guests', 'rooms'].map(item => (
+        {['expenses', 'guests', 'rooms', 'notify'].map(item => (
           <button
             key={item}
             className={`tab-button ${tab === item ? 'active' : ''}`}
             onClick={() => setSearchParams({ tab: item })}
             type="button"
           >
-            {item === 'expenses' ? 'Expenses' : item === 'guests' ? 'Guests' : 'Rooms'}
+            {item === 'expenses' ? 'Expenses' : item === 'guests' ? 'Guests' : item === 'rooms' ? 'Rooms' : 'Notify Guests'}
           </button>
         ))}
       </div>
@@ -882,6 +883,8 @@ export default function FamilyDashboard() {
           )}
         </section>
       )}
+
+      {tab === 'notify' && <NotifyGuests currentUser={currentUser} functions={functions} />}
     </main>
   )
 }
