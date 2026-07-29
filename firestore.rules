@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Requires Firebase Authentication with a trusted custom claim such as
+    // request.auth.token.side = "groom" or "bride". A browser-only static
+    // login/sessionStorage value is not available to Firestore rules.
+    function ownsSide(side) {
+      return request.auth != null && request.auth.token.side == side;
+    }
+
+    match /messagingContacts/{contactId} {
+      allow create: if ownsSide(request.resource.data.side);
+      allow read, delete: if ownsSide(resource.data.side);
+      allow update: if ownsSide(resource.data.side)
+        && request.resource.data.side == resource.data.side;
+    }
+
+    match /messagingContactLists/{listId} {
+      allow create: if ownsSide(request.resource.data.side);
+      allow read, delete: if ownsSide(resource.data.side);
+      allow update: if ownsSide(resource.data.side)
+        && request.resource.data.side == resource.data.side;
+    }
+
+    match /reminders/{reminderId} {
+      allow create: if ownsSide(request.resource.data.side);
+      allow read, delete: if ownsSide(resource.data.side);
+      allow update: if ownsSide(resource.data.side)
+        && request.resource.data.side == resource.data.side;
+    }
+  }
+}

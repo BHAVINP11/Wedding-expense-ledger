@@ -884,7 +884,7 @@ export default function FamilyDashboard() {
         </section>
       )}
 
-      {tab === 'notify' && <NotifyGuests currentUser={currentUser} functions={functions} />}
+      {tab === 'notify' && <NotifyGuests currentUser={currentUser} />}
     </main>
   )
 }

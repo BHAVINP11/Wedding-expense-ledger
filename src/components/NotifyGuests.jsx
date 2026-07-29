@@ -1,250 +1,223 @@
-import React, { useEffect, useState } from 'react'
-import { addDoc, collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  Timestamp,
+  where,
+  writeBatch,
+} from 'firebase/firestore'
 import { db } from '../firebase'
 
-const SIDES = {
-  groom: { label: "Groom's side", person: 'Bhavin', guestSide: 'Bhavin' },
-  bride: { label: "Bride's side", person: 'Dhaval', guestSide: 'Dhaval' },
-}
 const DEFAULT_SCHEDULE = '2027-02-09T10:00'
-const DEFAULT_SPECIAL_TEMPLATE = `Hey {{Name}}! 🎉
 
-Just 2 days to go — can you believe it?! 💛
+function sideForUser(user) {
+  return user === 'Dhaval' ? 'bride' : 'groom'
+}
 
-Bhavin & Shweta's wedding celebrations kick off on Feb 11th, and we cannot wait to have you there with us. Hope you're all set — bags packed, dancing shoes ready? 😄
+function formatSchedule(value) {
+  const date = value?.toDate ? value.toDate() : value instanceof Date ? value : null
+  return date ? date.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Not scheduled'
+}
 
-From Mandap Ropan to Haldi by the pool to a full-on Dandiya night, it's going to be an unforgettable few days — and it won't feel the same without you.
-
-See you soon, {{Name}}! Can't wait to celebrate together. 🪔✨
-
-— Bhavin & family`
+function dateTimeInputValue(value) {
+  const date = value?.toDate ? value.toDate() : value instanceof Date ? value : null
+  if (!date) return DEFAULT_SCHEDULE
+  const pad = number => String(number).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
 
 function fillName(template, name) {
-  return template.replace(/{{\s*name\s*}}|{name}/gi, name)
+  return (template || '').replace(/{{\s*name\s*}}/gi, name)
 }
 
-function eventName(event) {
-  return event.name || event.title || 'Wedding function'
+function ListNameForm({ onCancel, onContinue }) {
+  const [name, setName] = useState('')
+  return <div className="notify-contact-form list-name-form">
+    <label>Guest list name</label>
+    <input value={name} onChange={event => setName(event.target.value)} placeholder="e.g. College friends" />
+    <div className="form-actions"><button className="btn-ghost" type="button" onClick={onCancel}>Cancel</button><button className="btn-primary" type="button" disabled={!name.trim()} onClick={() => onContinue(name.trim())}>Continue</button></div>
+  </div>
 }
 
-function eventStart(event) {
-  const rawDate = event.date?.toDate ? event.date.toDate() : event.date
-  if (rawDate instanceof Date) return rawDate
-  if (!rawDate) return null
-  const result = new Date(`${rawDate}${event.time ? ` ${event.time}` : ''}`)
-  return Number.isNaN(result.getTime()) ? null : result
-}
-
-function sendTime(event) {
-  const start = eventStart(event)
-  if (!start) return 'Event time needs to be set'
-  const reminder = new Date(start.getTime() - 30 * 60 * 1000)
-  return reminder.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
-}
-
-function ContactForm({ initial, side, guests, lists, onCancel, onSave }) {
-  const [name, setName] = useState(initial?.name || '')
-  const [whatsappNumber, setWhatsappNumber] = useState(initial?.whatsappNumber || '')
-  const [note, setNote] = useState(initial?.note || '')
-  const [generalGuestId, setGeneralGuestId] = useState(initial?.generalGuestId || '')
-  const [listId, setListId] = useState(initial?.listId || '')
+function ContactListForm({ initial, listName, side, onCancel, onSave }) {
+  const [rows, setRows] = useState(initial ? [{ name: initial.name || '', phone: initial.phone || '' }] : [{ name: '', phone: '' }])
 
   useEffect(() => {
-    setName(initial?.name || '')
-    setWhatsappNumber(initial?.whatsappNumber || '')
-    setNote(initial?.note || '')
-    setGeneralGuestId(initial?.generalGuestId || '')
-    setListId(initial?.listId || '')
+    setRows(initial ? [{ name: initial.name || '', phone: initial.phone || '' }] : [{ name: '', phone: '' }])
   }, [initial])
 
-  const selectGuest = id => {
-    setGeneralGuestId(id)
-    const guest = guests.find(item => item.id === id)
-    if (guest) {
-      setName(guest.name || '')
-      setWhatsappNumber(guest.phone || '')
-    }
-  }
+  const updateRow = (index, field, value) => setRows(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, [field]: value } : row))
+  const validRows = rows.filter(row => row.name.trim() && row.phone.trim())
 
   return <div className="notify-contact-form">
-    <div className="form-row">
-      <div>
-        <label>Use an existing guest (optional)</label>
-        <select value={generalGuestId} onChange={e => selectGuest(e.target.value)}>
-          <option value="">Add a new contact directly</option>
-          {guests.map(guest => <option key={guest.id} value={guest.id}>{guest.name}{guest.phone ? ` · ${guest.phone}` : ''}</option>)}
-        </select>
-      </div>
-      <div>
-        <label>WhatsApp number</label>
-        <input value={whatsappNumber} onChange={e => setWhatsappNumber(e.target.value)} placeholder="+91 98765 43210" />
-      </div>
+    <div className="form-list-name">Adding contacts to <strong>{listName}</strong></div>
+    <div className="contact-form-rows">
+      {rows.map((row, index) => <div className="form-row" key={index}>
+        <div><label>Name</label><input value={row.name} onChange={event => updateRow(index, 'name', event.target.value)} placeholder="Guest name" /></div>
+        <div><label>WhatsApp number</label><input value={row.phone} onChange={event => updateRow(index, 'phone', event.target.value)} placeholder="+91 98765 43210" /></div>
+      </div>)}
     </div>
-    <div className="form-row">
-      <div><label>Name</label><input value={name} onChange={e => setName(e.target.value)} placeholder="Guest name" /></div>
-      <div><label>Notification list</label><select value={listId} onChange={e => setListId(e.target.value)}><option value="">Choose a list</option>{lists.map(list => <option key={list.id} value={list.id}>{list.name}</option>)}</select></div>
-    </div>
-    <div className="form-row"><div><label>Short note (optional)</label><input value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. close cousin" /></div></div>
+    {!initial && <button className="btn-ghost add-contact-row" type="button" onClick={() => setRows(current => [...current, { name: '', phone: '' }])}>+ Add another contact</button>}
     <div className="form-actions">
       <button className="btn-ghost" type="button" onClick={onCancel}>Cancel</button>
-      <button className="btn-primary" type="button" disabled={!name.trim() || !whatsappNumber.trim() || !listId} onClick={() => onSave({ name: name.trim(), whatsappNumber: whatsappNumber.trim(), note: note.trim(), generalGuestId, listId, side })}>
-        Save contact
-      </button>
+      <button className="btn-primary" type="button" disabled={validRows.length === 0} onClick={() => onSave(validRows.map(row => ({ name: row.name.trim(), phone: row.phone.trim(), side })))}>{initial ? 'Save changes' : 'Save guest list'}</button>
     </div>
   </div>
 }
 
-function EventReminder({ event, reminder, side, guests, onSave }) {
-  const [sharedTemplate, setSharedTemplate] = useState(reminder?.sharedTemplate || '')
-  const [override, setOverride] = useState(reminder?.[`${side}TemplateOverride`] || '')
-  const [useOverride, setUseOverride] = useState(Boolean(reminder?.[`${side}TemplateOverride`]))
-  const [selectedIds, setSelectedIds] = useState([])
-  const sideGuests = guests.filter(guest => guest.side === SIDES[side].guestSide)
+function ReminderForm({ initial, contacts, lists, side, onCancel, onSave }) {
+  const [title, setTitle] = useState(initial?.title || '')
+  const [template, setTemplate] = useState(initial?.template || 'Hey {{Name}}, just 2 days to go — are you ready? 🎉')
+  const [scheduledFor, setScheduledFor] = useState(dateTimeInputValue(initial?.scheduledFor))
+  const [recipientListIds, setRecipientListIds] = useState(initial?.recipientListIds || [])
 
   useEffect(() => {
-    setSharedTemplate(reminder?.sharedTemplate || '')
-    setOverride(reminder?.[`${side}TemplateOverride`] || '')
-    setUseOverride(Boolean(reminder?.[`${side}TemplateOverride`]))
-    const saved = reminder?.recipientGuestIds?.[side]
-    setSelectedIds(saved || sideGuests.filter(guest => guest.functionsAttending?.includes(event.id)).map(guest => guest.id))
-  }, [reminder, side, event.id, guests])
+    setTitle(initial?.title || '')
+    setTemplate(initial?.template || 'Hey {{Name}}, just 2 days to go — are you ready? 🎉')
+    setScheduledFor(dateTimeInputValue(initial?.scheduledFor))
+    setRecipientListIds(initial?.recipientListIds || [])
+  }, [initial])
 
-  const save = changes => onSave(event.id, {
-    enabled: reminder?.enabled ?? false,
-    sharedTemplate,
-    groomTemplateOverride: reminder?.groomTemplateOverride || '',
-    brideTemplateOverride: reminder?.brideTemplateOverride || '',
-    recipientGuestIds: reminder?.recipientGuestIds || { groom: [], bride: [] },
-    ...changes,
-  })
-  const toggleRecipient = id => {
-    const next = selectedIds.includes(id) ? selectedIds.filter(item => item !== id) : [...selectedIds, id]
-    setSelectedIds(next)
-    save({ recipientGuestIds: { ...(reminder?.recipientGuestIds || {}), [side]: next } })
-  }
+  const selectedContacts = contacts.filter(contact => recipientListIds.includes(contact.listId))
+  const toggleList = id => setRecipientListIds(ids => ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id])
+  const selectAll = () => setRecipientListIds(lists.map(list => list.id))
+  const previewContacts = selectedContacts.slice(0, 2)
 
-  return <article className="event-reminder-card">
-    <div className="event-reminder-heading">
-      <div><h3>{eventName(event)}</h3><p>30-minute reminder · will send at <strong>{sendTime(event)}</strong></p></div>
-      <label className="switch-label"><input type="checkbox" checked={Boolean(reminder?.enabled)} onChange={e => save({ enabled: e.target.checked })} /> Enable</label>
+  return <div className="reminder-form">
+    <div className="form-row">
+      <div><label>Reminder title</label><input value={title} onChange={event => setTitle(event.target.value)} placeholder="e.g. 2-Day Wedding Reminder" /></div>
+      <div><label>Schedule date & time</label><input type="datetime-local" value={scheduledFor} onChange={event => setScheduledFor(event.target.value)} /></div>
     </div>
-    <div className="notify-template-choice">
-      <label><input type="radio" checked={!useOverride} onChange={() => setUseOverride(false)} /> Shared message</label>
-      <label><input type="radio" checked={useOverride} onChange={() => setUseOverride(true)} /> Custom for {SIDES[side].person}</label>
+    <div className="reminder-recipient-controls">
+      <div className="recipient-picker-title"><label>Choose guest list</label><button type="button" className="btn-ghost" onClick={selectAll}>Select all</button></div>
+      <div className="reminder-contact-picker">
+        {lists.length === 0 ? <div className="small-help">No guest lists found. Create a list in the Guest List sub-tab first.</div> : lists.map(list => <label key={list.id} className="checkbox-pill"><input type="checkbox" checked={recipientListIds.includes(list.id)} onChange={() => toggleList(list.id)} /><span>{list.name}<small>{contacts.filter(contact => contact.listId === list.id).length} contacts</small></span></label>)}
+      </div>
     </div>
-    {!useOverride ? <>
-      <label>Shared message template</label>
-      <textarea value={sharedTemplate} onChange={e => setSharedTemplate(e.target.value)} placeholder="Hey {{Name}}! This function begins in 30 minutes..." />
-      <button className="btn-ghost" type="button" onClick={() => save({ sharedTemplate })}>Save shared message</button>
-    </> : <>
-      <label>{SIDES[side].person}'s message override</label>
-      <textarea value={override} onChange={e => setOverride(e.target.value)} placeholder="Hey {{Name}}! This function begins in 30 minutes..." />
-      <button className="btn-ghost" type="button" onClick={() => save({ [`${side}TemplateOverride`]: override })}>Save side message</button>
-    </>}
-    <div className="recipient-picker">
-      <div><strong>Recipients from {SIDES[side].person}'s guest list</strong><span>Defaults to guests marked as attending this function. Adjust anytime.</span></div>
-      {sideGuests.length === 0 ? <p className="small-help">No general guests have been added for this side yet.</p> : <div className="checkbox-grid">
-        {sideGuests.map(guest => <label key={guest.id} className="checkbox-pill"><input type="checkbox" checked={selectedIds.includes(guest.id)} onChange={() => toggleRecipient(guest.id)} />{guest.name}</label>)}
-      </div>}
+    <div>
+      <label>Message template</label>
+      <textarea value={template} onChange={event => setTemplate(event.target.value)} placeholder="Hey {{Name}}, just 2 days to go — are you ready? 🎉" />
+      <span className="small-help">Use <strong>{'{{Name}}'}</strong> — it’ll automatically be replaced with each guest’s name when sent.</span>
     </div>
-  </article>
+    <div className="reminder-preview">
+      <strong>Preview (showing {Math.min(2, selectedContacts.length)} of {selectedContacts.length} recipients)</strong>
+      {previewContacts.length === 0 ? <p className="small-help">Select contacts to see their personalized previews.</p> : previewContacts.map(contact => <div key={contact.id} className="preview-message"><span>{contact.name}</span>{fillName(template, contact.name)}</div>)}
+    </div>
+    <div className="form-actions">
+      <button className="btn-ghost" type="button" onClick={onCancel}>Cancel</button>
+      <button className="btn-primary" type="button" disabled={!title.trim() || !template.trim() || !scheduledFor || selectedContacts.length === 0} onClick={() => onSave({ title: title.trim(), template, recipientListIds, recipientIds: selectedContacts.map(contact => contact.id), scheduledFor: Timestamp.fromDate(new Date(scheduledFor)), side, status: 'scheduled' })}>{initial ? 'Save changes' : 'Save / Schedule'}</button>
+    </div>
+  </div>
 }
 
-export default function NotifyGuests({ currentUser, functions }) {
-  const defaultSide = currentUser === 'Dhaval' ? 'bride' : 'groom'
-  const [side, setSide] = useState(defaultSide)
+export default function NotifyGuests({ currentUser }) {
+  const side = sideForUser(currentUser)
+  const [subTab, setSubTab] = useState('contacts')
   const [contacts, setContacts] = useState([])
   const [lists, setLists] = useState([])
-  const [guests, setGuests] = useState([])
-  const [inviteConfigs, setInviteConfigs] = useState({})
-  const [reminders, setReminders] = useState({})
-  const [showForm, setShowForm] = useState(false)
+  const [reminders, setReminders] = useState([])
+  const [showListNameForm, setShowListNameForm] = useState(false)
+  const [creatingListName, setCreatingListName] = useState('')
+  const [showContactForm, setShowContactForm] = useState(false)
   const [editingContact, setEditingContact] = useState(null)
-  const [template, setTemplate] = useState(DEFAULT_SPECIAL_TEMPLATE)
-  const [scheduledFor, setScheduledFor] = useState(DEFAULT_SCHEDULE)
-  const [selectedListIds, setSelectedListIds] = useState([])
+  const [showReminderForm, setShowReminderForm] = useState(false)
+  const [editingReminder, setEditingReminder] = useState(null)
+  const [expandedReminderId, setExpandedReminderId] = useState(null)
+  const [expandedListId, setExpandedListId] = useState(null)
   const [notice, setNotice] = useState('')
 
   useEffect(() => {
-    const unsubs = [
-      onSnapshot(collection(db, 'specialInviteContacts'), snapshot => setContacts(snapshot.docs.map(item => ({ id: item.id, ...item.data() })))),
-      onSnapshot(collection(db, 'specialInviteLists'), snapshot => setLists(snapshot.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '')))),
-      onSnapshot(collection(db, 'guests'), snapshot => setGuests(snapshot.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '')))),
-      onSnapshot(collection(db, 'specialInvites'), snapshot => setInviteConfigs(Object.fromEntries(snapshot.docs.map(item => [item.data().side || item.id, { id: item.id, ...item.data() }])))),
-      onSnapshot(collection(db, 'eventReminders'), snapshot => setReminders(Object.fromEntries(snapshot.docs.map(item => [item.id, { id: item.id, ...item.data() }])))),
-    ]
-    return () => unsubs.forEach(unsub => unsub())
-  }, [])
+    const contactsQuery = query(collection(db, 'messagingContacts'), where('side', '==', side))
+    const listsQuery = query(collection(db, 'messagingContactLists'), where('side', '==', side))
+    const remindersQuery = query(collection(db, 'reminders'), where('side', '==', side))
+    const unsubscribeContacts = onSnapshot(contactsQuery, snapshot => {
+      setContacts(snapshot.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || '')))
+    })
+    const unsubscribeReminders = onSnapshot(remindersQuery, snapshot => {
+      setReminders(snapshot.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (b.scheduledFor?.seconds || 0) - (a.scheduledFor?.seconds || 0)))
+    })
+    const unsubscribeLists = onSnapshot(listsQuery, snapshot => setLists(snapshot.docs.map(item => ({ id: item.id, ...item.data() })).sort((a, b) => (a.name || '').localeCompare(b.name || ''))))
+    return () => { unsubscribeContacts(); unsubscribeReminders(); unsubscribeLists() }
+  }, [side])
 
-  const config = inviteConfigs[side]
-  const sideContacts = contacts.filter(contact => contact.side === side)
-  const sideLists = lists.filter(list => list.side === side)
-  const sideGuests = guests.filter(guest => guest.side === SIDES[side].guestSide)
-  useEffect(() => {
-    setTemplate(config?.template || DEFAULT_SPECIAL_TEMPLATE)
-    setScheduledFor(config?.scheduledFor || DEFAULT_SCHEDULE)
-    setSelectedListIds(config?.recipientListIds || [])
-  }, [side, config?.template, config?.scheduledFor, config?.recipientListIds])
-
-  const saveContact = async data => {
+  const contactById = useMemo(() => Object.fromEntries(contacts.map(contact => [contact.id, contact])), [contacts])
+  const saveContacts = async (data, listId) => {
     try {
-      if (editingContact) await setDoc(doc(db, 'specialInviteContacts', editingContact.id), { ...data, updatedAt: serverTimestamp() }, { merge: true })
-      else await addDoc(collection(db, 'specialInviteContacts'), { ...data, createdAt: serverTimestamp() })
-      setShowForm(false); setEditingContact(null)
+      if (editingContact) {
+        await setDoc(doc(db, 'messagingContacts', editingContact.id), { ...data[0], listId, updatedAt: serverTimestamp() }, { merge: true })
+      } else {
+        const batch = writeBatch(db)
+        const listRef = doc(collection(db, 'messagingContactLists'))
+        batch.set(listRef, { name: creatingListName, side, createdAt: serverTimestamp() })
+        data.forEach(contact => batch.set(doc(collection(db, 'messagingContacts')), { ...contact, listId: listRef.id, createdAt: serverTimestamp() }))
+        await batch.commit()
+      }
+      setShowContactForm(false); setEditingContact(null); setCreatingListName('')
     } catch (error) { alert(`Could not save contact: ${error.message}`) }
   }
-  const removeContact = async id => {
-    if (confirm('Delete this special invite contact?')) await deleteDoc(doc(db, 'specialInviteContacts', id))
+  const deleteContact = async id => {
+    if (confirm('Delete this messaging contact?')) await deleteDoc(doc(db, 'messagingContacts', id))
   }
-  const createList = async () => {
-    const name = prompt('Name this notification list (for example, Close family):')?.trim()
-    if (!name) return
+  const saveReminder = async data => {
     try {
-      await addDoc(collection(db, 'specialInviteLists'), { name, side, createdAt: serverTimestamp() })
-    } catch (error) { alert(`Could not create list: ${error.message}`) }
+      if (editingReminder) await setDoc(doc(db, 'reminders', editingReminder.id), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+      else await addDoc(collection(db, 'reminders'), { ...data, createdAt: serverTimestamp() })
+      setShowReminderForm(false); setEditingReminder(null)
+      setNotice('Reminder scheduled — will send via WhatsApp once messaging is connected.')
+    } catch (error) { alert(`Could not save reminder: ${error.message}`) }
   }
-  const saveInvite = async status => {
-    try {
-      const guestIds = sideContacts.filter(contact => selectedListIds.includes(contact.listId)).map(contact => contact.id)
-      await setDoc(doc(db, 'specialInvites', side), { side, template, scheduledFor, recipientListIds: selectedListIds, guestIds, status, updatedAt: serverTimestamp() }, { merge: true })
-      setNotice(status === 'scheduled' ? 'Scheduled placeholder saved. This will be sent via WhatsApp once messaging is connected.' : 'Draft saved.')
-    } catch (error) { alert(`Could not save invite: ${error.message}`) }
+  const deleteReminder = async id => {
+    if (confirm('Delete this reminder?')) await deleteDoc(doc(db, 'reminders', id))
   }
-  const saveReminder = async (functionId, data) => {
-    try { await setDoc(doc(db, 'eventReminders', functionId), { ...data, updatedAt: serverTimestamp() }, { merge: true }) }
-    catch (error) { alert(`Could not save reminder: ${error.message}`) }
-  }
-  const previewName = sideContacts[0]?.name || (side === 'groom' ? 'Jeet' : 'Aarav')
-  const preview = fillName(template, previewName)
 
   return <section className="section-panel notify-guests">
-    <div className="notify-banner">Messages are prepared here but WhatsApp sending isn’t connected yet — your templates and schedules will be saved for when it’s ready.</div>
-    <div className="section-title section-title-with-badge"><div className="guest-heading"><h2>Notify Guests</h2><span className="private-badge">WhatsApp ready</span></div></div>
-    <div className="notify-side-tabs" role="tablist">
-      {Object.entries(SIDES).map(([key, item]) => <button key={key} type="button" className={`tab-button ${side === key ? 'active' : ''}`} onClick={() => setSide(key)}>{item.label} · {item.person}</button>)}
+    <div className="notify-banner">Messages are prepared and scheduled here — WhatsApp sending will connect once the API is integrated.</div>
+    <div className="section-title section-title-with-badge"><div className="guest-heading"><h2>Notify Guests</h2><span className="private-badge">{side === 'groom' ? "Bhavin's side" : "Dhaval's side"}</span></div></div>
+    <div className="notify-subtabs" role="tablist">
+      <button type="button" className={`tab-button ${subTab === 'contacts' ? 'active' : ''}`} onClick={() => setSubTab('contacts')}>Guest List</button>
+      <button type="button" className={`tab-button ${subTab === 'reminders' ? 'active' : ''}`} onClick={() => setSubTab('reminders')}>Reminders</button>
     </div>
 
-    <section className="notify-section">
-      <div className="section-title"><span>Special invite & reminder list</span><div className="section-actions"><button className="btn-ghost" type="button" onClick={createList}>+ New list</button><button className="btn-primary" type="button" onClick={() => { setEditingContact(null); setShowForm(value => !value) }}>{showForm ? 'Close' : '+ Add contact'}</button></div></div>
-      <p className="small-help">Create a named notification list (such as “Close family”), then add each contact with their name and WhatsApp number. The future sender will use the same contact record to personalize the template.</p>
-      {showForm && <ContactForm initial={editingContact} side={side} guests={sideGuests} lists={sideLists} onCancel={() => { setShowForm(false); setEditingContact(null) }} onSave={saveContact} />}
+    {subTab === 'contacts' && <section className="notify-section">
+      <div className="section-title"><span>Messaging guest list</span><button className="btn-primary" type="button" onClick={() => {
+        if (showListNameForm || showContactForm) { setShowListNameForm(false); setShowContactForm(false); setCreatingListName('') }
+        else { setEditingContact(null); setShowListNameForm(true) }
+      }}>{showListNameForm || showContactForm ? 'Close' : '+ Add list'}</button></div>
+      <p className="small-help">This private list is only for message reminders. It is separate from the RSVP and room-assignment guest list.</p>
+      {showListNameForm && <ListNameForm onCancel={() => setShowListNameForm(false)} onContinue={name => { setCreatingListName(name); setShowListNameForm(false); setShowContactForm(true) }} />}
+      {showContactForm && <ContactListForm initial={editingContact} listName={editingContact ? lists.find(list => list.id === editingContact.listId)?.name || 'Guest list' : creatingListName} side={side} onCancel={() => { setShowContactForm(false); setEditingContact(null); setCreatingListName('') }} onSave={data => saveContacts(data, editingContact?.listId)} />}
       <div className="notify-contact-list">
-        {sideContacts.length === 0 ? <div className="empty">No special contacts on this side yet.</div> : sideContacts.map(contact => <div className="guest-row" key={contact.id}><div><div className="guest-name">{contact.name}</div><div className="guest-meta">{contact.whatsappNumber} · {sideLists.find(list => list.id === contact.listId)?.name || 'No list'}</div>{contact.note && <div className="guest-notes">{contact.note}</div>}</div><div className="guest-actions"><button className="btn-ghost" type="button" onClick={() => { setEditingContact(contact); setShowForm(true) }}>Edit</button><button className="btn-danger" type="button" onClick={() => removeContact(contact.id)}>Delete</button></div></div>)}
+        {lists.length === 0 ? <div className="empty">No guest lists yet. Add a list to schedule reminders.</div> : lists.map(list => {
+          const listContacts = contacts.filter(contact => contact.listId === list.id)
+          const expanded = expandedListId === list.id
+          return <article className="guest-list-card" key={list.id}>
+            <button type="button" className="reminder-card-summary" onClick={() => setExpandedListId(expanded ? null : list.id)} aria-expanded={expanded}><div><h3>{list.name}</h3><p>{listContacts.length} contacts</p></div><span>{expanded ? '−' : '+'}</span></button>
+            {expanded && <div className="guest-list-card-details">{listContacts.length === 0 ? <p className="small-help">No contacts in this list.</p> : listContacts.map(contact => <div className="guest-row" key={contact.id}><div><div className="guest-name">{contact.name}</div><div className="guest-meta">{contact.phone}</div></div><div className="guest-actions"><button className="btn-ghost" type="button" onClick={() => { setEditingContact(contact); setShowContactForm(true) }}>Edit</button><button className="btn-danger" type="button" onClick={() => deleteContact(contact.id)}>Delete</button></div></div>)}</div>}
+          </article>
+        })}
       </div>
-      <div className="notify-schedule-card">
-        <div><label>Special message template</label><textarea value={template} onChange={e => setTemplate(e.target.value)} placeholder="Hey {{Name}}, we'd love for you to join us..." /><span className="small-help">Use <strong>{'{{Name}}'}</strong> wherever the guest’s name should appear. It is saved exactly as written; later, sending will replace it with each selected contact’s name.</span></div>
-        <div className="recipient-picker"><div><strong>Choose notification list(s) for this schedule</strong><span>Only the contacts in these selected lists will be prepared as recipients.</span></div>{sideLists.length === 0 ? <p className="small-help">Create a notification list before scheduling.</p> : <div className="checkbox-grid">{sideLists.map(list => <label key={list.id} className="checkbox-pill"><input type="checkbox" checked={selectedListIds.includes(list.id)} onChange={() => setSelectedListIds(ids => ids.includes(list.id) ? ids.filter(id => id !== list.id) : [...ids, list.id])} />{list.name} ({sideContacts.filter(contact => contact.listId === list.id).length})</label>)}</div>}</div>
-        <div className="notify-schedule-actions"><label>Send on (placeholder schedule)<input type="datetime-local" value={scheduledFor} onChange={e => setScheduledFor(e.target.value)} /></label><div className="form-actions"><button className="btn-ghost" type="button" onClick={() => setNotice(preview ? `Preview: ${preview}` : 'Add a message template to preview it.')}>Preview</button><button className="btn-ghost" type="button" onClick={() => saveInvite('draft')}>Save draft</button><button className="btn-primary" type="button" onClick={() => saveInvite('scheduled')}>Schedule</button></div></div>
-        {notice && <div className="notify-notice" role="status">{notice}</div>}
-      </div>
-    </section>
+    </section>}
 
-    <section className="notify-section">
-      <div className="section-title">30-minute event reminders</div>
-      <p className="small-help">These times are calculated automatically from the public wedding functions. Enable a reminder only when you want it prepared.</p>
-      <div className="event-reminder-list">
-        {functions.length === 0 ? <div className="empty">Wedding functions will appear here once they are available.</div> : functions.map(event => <EventReminder key={event.id} event={event} reminder={reminders[event.id]} side={side} guests={guests} onSave={saveReminder} />)}
+    {subTab === 'reminders' && <section className="notify-section">
+      <div className="section-title"><span>Scheduled reminders</span><button className="btn-primary" type="button" onClick={() => { setEditingReminder(null); setShowReminderForm(value => !value) }}>{showReminderForm ? 'Close' : '+ Add reminder'}</button></div>
+      {notice && <div className="notify-notice" role="status">{notice}</div>}
+      {showReminderForm && <ReminderForm initial={editingReminder} contacts={contacts} lists={lists} side={side} onCancel={() => { setShowReminderForm(false); setEditingReminder(null) }} onSave={saveReminder} />}
+      <div className="reminder-list">
+        {reminders.length === 0 ? <div className="empty">No reminders scheduled yet.</div> : reminders.map(reminder => {
+          const recipients = (reminder.recipientIds || []).map(id => contactById[id]).filter(Boolean)
+          const expanded = expandedReminderId === reminder.id
+          return <article key={reminder.id} className="reminder-card">
+            <button type="button" className="reminder-card-summary" onClick={() => setExpandedReminderId(expanded ? null : reminder.id)} aria-expanded={expanded}><div><h3>{reminder.title}</h3><p>{formatSchedule(reminder.scheduledFor)} · {reminder.recipientIds?.length || 0} recipients</p></div><span>{expanded ? '−' : '+'}</span></button>
+            {expanded && <div className="reminder-card-details"><div><strong>Message template</strong><p className="reminder-template">{reminder.template}</p></div><div><strong>Recipients ({reminder.recipientIds?.length || 0})</strong><p>{recipients.length ? recipients.map(contact => `${contact.name} (${contact.phone})`).join(', ') : 'No matching contacts found.'}</p></div><div className="form-actions"><button className="btn-ghost" type="button" onClick={() => { setEditingReminder(reminder); setShowReminderForm(true) }}>Edit</button><button className="btn-danger" type="button" onClick={() => deleteReminder(reminder.id)}>Delete</button></div></div>}
+          </article>
+        })}
       </div>
-    </section>
+    </section>}
   </section>
 }
