@@ -21,7 +21,34 @@
   --red-light:#F5DEDE;
 }
 *{box-sizing:border-box}
+html,body{min-height:100%}
 body{margin:0;font-family:'Work Sans',sans-serif;background:var(--ivory);color:var(--text);padding:24px 16px 60px}
+
+html.has-custom-cursor body{
+  cursor:url('/cursor-petal.svg') 4 4, auto;
+}
+
+html.has-custom-cursor a,
+html.has-custom-cursor button,
+html.has-custom-cursor input,
+html.has-custom-cursor select,
+html.has-custom-cursor textarea,
+html.has-custom-cursor .filter-chip,
+html.has-custom-cursor .checkbox-pill,
+html.has-custom-cursor .celebration-card-summary,
+html.has-custom-cursor .venue-action-link,
+html.has-custom-cursor .venue-button,
+html.has-custom-cursor .music-toggle,
+html.has-custom-cursor .dont-press-button,
+html.has-custom-cursor .tab-button,
+html.has-custom-cursor .guest-actions button,
+html.has-custom-cursor .expense-footer button,
+html.has-custom-cursor .btn-primary,
+html.has-custom-cursor .btn-ghost,
+html.has-custom-cursor .btn-danger{
+  cursor:url('/cursor-petal-glow.svg') 4 4, pointer;
+}
+
 .wrap{max-width:960px;margin:0 auto}
 h1{font-family:'Fraunces',serif;font-weight:600;font-size:28px;text-align:center;color:var(--maroon);margin:0 0 4px}
 .sub{text-align:center;color:var(--text-soft);font-size:14px;margin-bottom:12px}
