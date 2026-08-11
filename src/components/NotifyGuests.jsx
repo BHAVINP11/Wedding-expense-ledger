@@ -176,16 +176,53 @@ export default function NotifyGuests({ currentUser, serviceLists = [], serviceSi
     }
 
     try {
-      const batch = writeBatch(db)
-      const listRef = doc(collection(db, 'messagingContactLists'))
-      batch.set(listRef, { name: `${serviceList.title} (service sign-ups)`, side, createdAt: serverTimestamp() })
-      contactsToCreate.forEach(contact => {
-        batch.set(doc(collection(db, 'messagingContacts')), { ...contact, listId: listRef.id, createdAt: serverTimestamp() })
-      })
-      await batch.commit()
-      setNotice(`Synced ${contactsToCreate.length} service sign-ups from ${serviceList.title} into a notify list.`)
+      const listName = `${serviceList.title} (service sign-ups)`
+      const existingList = lists.find(list => list.name === listName && list.side === side)
+      
+      if (existingList) {
+        // Update existing list: delete old contacts and add new ones
+        const oldContacts = contacts.filter(contact => contact.listId === existingList.id)
+        const batch = writeBatch(db)
+        
+        // Delete old contacts
+        oldContacts.forEach(contact => {
+          batch.delete(doc(db, 'messagingContacts', contact.id))
+        })
+        
+        // Add new contacts
+        contactsToCreate.forEach(contact => {
+          batch.set(doc(collection(db, 'messagingContacts')), { ...contact, listId: existingList.id, createdAt: serverTimestamp() })
+        })
+        
+        await batch.commit()
+        setNotice(`Updated ${serviceList.title} list with ${contactsToCreate.length} service sign-ups.`)
+      } else {
+        // Create new list
+        const batch = writeBatch(db)
+        const listRef = doc(collection(db, 'messagingContactLists'))
+        batch.set(listRef, { name: listName, side, createdAt: serverTimestamp() })
+        contactsToCreate.forEach(contact => {
+          batch.set(doc(collection(db, 'messagingContacts')), { ...contact, listId: listRef.id, createdAt: serverTimestamp() })
+        })
+        await batch.commit()
+        setNotice(`Synced ${contactsToCreate.length} service sign-ups from ${serviceList.title} into a new notify list.`)
+      }
     } catch (error) {
       alert(`Could not sync service sign-ups: ${error.message}`)
+    }
+  }
+  const deleteList = async id => {
+    if (!confirm('Delete this guest list and all its contacts?')) return
+    try {
+      const listContacts = contacts.filter(contact => contact.listId === id)
+      const batch = writeBatch(db)
+      batch.delete(doc(db, 'messagingContactLists', id))
+      listContacts.forEach(contact => {
+        batch.delete(doc(db, 'messagingContacts', contact.id))
+      })
+      await batch.commit()
+    } catch (error) {
+      alert(`Could not delete list: ${error.message}`)
     }
   }
   const saveReminder = async data => {
@@ -236,7 +273,10 @@ export default function NotifyGuests({ currentUser, serviceLists = [], serviceSi
           const listContacts = contacts.filter(contact => contact.listId === list.id)
           const expanded = expandedListId === list.id
           return <article className="guest-list-card" key={list.id}>
-            <button type="button" className="reminder-card-summary" onClick={() => setExpandedListId(expanded ? null : list.id)} aria-expanded={expanded}><div><h3>{list.name}</h3><p>{listContacts.length} contacts</p></div><span>{expanded ? '−' : '+'}</span></button>
+            <div className="guest-list-card-header">
+              <button type="button" className="reminder-card-summary" onClick={() => setExpandedListId(expanded ? null : list.id)} aria-expanded={expanded}><div><h3>{list.name}</h3><p>{listContacts.length} contacts</p></div><span>{expanded ? '−' : '+'}</span></button>
+              <button className="btn-danger" type="button" onClick={() => deleteList(list.id)}>Delete list</button>
+            </div>
             {expanded && <div className="guest-list-card-details">{listContacts.length === 0 ? <p className="small-help">No contacts in this list.</p> : listContacts.map(contact => <div className="guest-row" key={contact.id}><div><div className="guest-name">{contact.name}</div><div className="guest-meta">{contact.phone}</div></div><div className="guest-actions"><button className="btn-ghost" type="button" onClick={() => { setEditingContact(contact); setShowContactForm(true) }}>Edit</button><button className="btn-danger" type="button" onClick={() => deleteContact(contact.id)}>Delete</button></div></div>)}</div>}
           </article>
         })}
