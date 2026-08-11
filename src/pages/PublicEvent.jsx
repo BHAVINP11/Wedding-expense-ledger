@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { collection, orderBy, query, onSnapshot } from 'firebase/firestore'
+import { addDoc, collection, orderBy, query, onSnapshot, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useCountdown } from '../hooks/useCountdown'
 import CelebrationCard from '../components/CelebrationCard'
@@ -171,6 +171,95 @@ function normalizeFunctionEvent(doc) {
   }
 }
 
+function PerformanceInterestForm() {
+  const [name, setName] = useState('')
+  const [contact, setContact] = useState('')
+  const [side, setSide] = useState('groom')
+  const [groupType, setGroupType] = useState('solo')
+  const [participantCount, setParticipantCount] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleSubmit = async event => {
+    event.preventDefault()
+    setError('')
+
+    if (!name.trim() || !contact.trim()) {
+      setError('Please fill in your name and contact number.')
+      return
+    }
+
+    if (groupType === 'group' && !participantCount) {
+      setError('Please tell us how many people are in the group.')
+      return
+    }
+
+    try {
+      const payload = {
+        name: name.trim(),
+        contact: contact.trim(),
+        side,
+        groupType,
+        createdAt: serverTimestamp(),
+        ...(groupType === 'group' ? { participantCount: Number(participantCount) || 1 } : {}),
+      }
+      await addDoc(collection(db, 'performanceInterest'), payload)
+      setSubmitted(true)
+      setName('')
+      setContact('')
+      setSide('groom')
+      setGroupType('solo')
+      setParticipantCount('')
+    } catch (saveError) {
+      setError('Could not save your interest. Please try again.')
+    }
+  }
+
+  return (
+    <section className="performance-interest-card">
+      <div className="eyebrow">Dandiya Night</div>
+      <h3>Want to perform on Dandiya Night? 💃🕺</h3>
+      <p>Let us know and we'll get in touch to arrange it!</p>
+      {submitted ? (
+        <div className="performance-success">Thanks! We'll reach out to you soon 🎉</div>
+      ) : (
+        <form className="performance-form" onSubmit={handleSubmit}>
+          <label>
+            <span>Name</span>
+            <input value={name} onChange={e => setName(e.target.value)} required placeholder="Your name" />
+          </label>
+          <label>
+            <span>Contact number</span>
+            <input value={contact} onChange={e => setContact(e.target.value)} required placeholder="Call / WhatsApp number" />
+          </label>
+          <label>
+            <span>Which side are you from?</span>
+            <select value={side} onChange={e => setSide(e.target.value)} required>
+              <option value="groom">Bhavin's side</option>
+              <option value="bride">Shweta's side</option>
+            </select>
+          </label>
+          <label>
+            <span>Solo or group?</span>
+            <select value={groupType} onChange={e => setGroupType(e.target.value)} required>
+              <option value="solo">Solo</option>
+              <option value="group">Group</option>
+            </select>
+          </label>
+          {groupType === 'group' && (
+            <label>
+              <span>If group, how many people?</span>
+              <input type="number" min="2" value={participantCount} onChange={e => setParticipantCount(e.target.value)} required placeholder="e.g. 4" />
+            </label>
+          )}
+          {error && <div className="performance-error">{error}</div>}
+          <button className="btn-primary" type="submit">Send interest</button>
+        </form>
+      )}
+    </section>
+  )
+}
+
 export default function PublicEvent() {
   const [functions, setFunctions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -246,12 +335,14 @@ export default function PublicEvent() {
             <div className="schedule-empty">Loading celebration journey...</div>
           ) : (
             events.map(event => (
-              <CelebrationCard
-                key={event.id}
-                event={event}
-                expanded={selected === event.id}
-                onToggle={() => setSelected(selected === event.id ? null : event.id)}
-              />
+              <React.Fragment key={event.id}>
+                <CelebrationCard
+                  event={event}
+                  expanded={selected === event.id}
+                  onToggle={() => setSelected(selected === event.id ? null : event.id)}
+                />
+                {event.id === 'dandiya-night' && <PerformanceInterestForm />}
+              </React.Fragment>
             ))
           )}
         </div>

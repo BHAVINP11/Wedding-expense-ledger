@@ -116,7 +116,7 @@ function ReminderForm({ initial, contacts, lists, side, onCancel, onSave }) {
   </div>
 }
 
-export default function NotifyGuests({ currentUser }) {
+export default function NotifyGuests({ currentUser, serviceLists = [], serviceSignups = [] }) {
   const side = sideForUser(currentUser)
   const [subTab, setSubTab] = useState('contacts')
   const [contacts, setContacts] = useState([])
@@ -164,6 +164,30 @@ export default function NotifyGuests({ currentUser }) {
   const deleteContact = async id => {
     if (confirm('Delete this messaging contact?')) await deleteDoc(doc(db, 'messagingContacts', id))
   }
+  const syncServiceListToContacts = async serviceList => {
+    const signups = serviceSignups.filter(item => item.listId === serviceList.id)
+    const contactsToCreate = signups
+      .filter(item => item.contactNumber?.trim())
+      .map(item => ({ name: item.name?.trim() || 'Service signup', phone: item.contactNumber.trim(), side }))
+
+    if (!contactsToCreate.length) {
+      setNotice(`No WhatsApp numbers were found for ${serviceList.title}.`)
+      return
+    }
+
+    try {
+      const batch = writeBatch(db)
+      const listRef = doc(collection(db, 'messagingContactLists'))
+      batch.set(listRef, { name: `${serviceList.title} (service sign-ups)`, side, createdAt: serverTimestamp() })
+      contactsToCreate.forEach(contact => {
+        batch.set(doc(collection(db, 'messagingContacts')), { ...contact, listId: listRef.id, createdAt: serverTimestamp() })
+      })
+      await batch.commit()
+      setNotice(`Synced ${contactsToCreate.length} service sign-ups from ${serviceList.title} into a notify list.`)
+    } catch (error) {
+      alert(`Could not sync service sign-ups: ${error.message}`)
+    }
+  }
   const saveReminder = async data => {
     try {
       if (editingReminder) await setDoc(doc(db, 'reminders', editingReminder.id), { ...data, updatedAt: serverTimestamp() }, { merge: true })
@@ -192,6 +216,21 @@ export default function NotifyGuests({ currentUser }) {
       <p className="small-help">This private list is only for message reminders. It is separate from the RSVP and room-assignment guest list.</p>
       {showListNameForm && <ListNameForm onCancel={() => setShowListNameForm(false)} onContinue={name => { setCreatingListName(name); setShowListNameForm(false); setShowContactForm(true) }} />}
       {showContactForm && <ContactListForm initial={editingContact} listName={editingContact ? lists.find(list => list.id === editingContact.listId)?.name || 'Guest list' : creatingListName} side={side} onCancel={() => { setShowContactForm(false); setEditingContact(null); setCreatingListName('') }} onSave={data => saveContacts(data, editingContact?.listId)} />}
+      <div className="service-sync-card">
+        <strong>Sync service sign-ups</strong>
+        <p className="small-help">Bring WhatsApp-ready contacts from your service lists into the notify area for reminders.</p>
+        {serviceLists.length === 0 ? <div className="small-help">No service lists yet. Create one from the Service Sign-ups tab.</div> : serviceLists.map(list => {
+          const signups = serviceSignups.filter(item => item.listId === list.id)
+          const readyCount = signups.filter(item => item.contactNumber?.trim()).length
+          return <div key={list.id} className="service-sync-row">
+            <div>
+              <strong>{list.title}</strong>
+              <span>{readyCount} ready for WhatsApp · {signups.length} total</span>
+            </div>
+            <button className="btn-ghost" type="button" onClick={() => syncServiceListToContacts(list)} disabled={!readyCount}>Sync</button>
+          </div>
+        })}
+      </div>
       <div className="notify-contact-list">
         {lists.length === 0 ? <div className="empty">No guest lists yet. Add a list to schedule reminders.</div> : lists.map(list => {
           const listContacts = contacts.filter(contact => contact.listId === list.id)

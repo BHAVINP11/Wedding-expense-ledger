@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { db } from '../firebase'
 import { currentFamilyUser, isAuthed, logout } from '../familyAuth'
@@ -19,6 +19,7 @@ import {
 import DashboardHeader from '../components/DashboardHeader'
 import SummaryCard from '../components/SummaryCard'
 import NotifyGuests from '../components/NotifyGuests'
+import { exportPdf } from '../utils/dashboardPdf'
 
 const CATEGORIES = [
   'All',
@@ -328,6 +329,349 @@ function GuestForm({ initial, functions, onCancel, onSave }) {
   )
 }
 
+function TaskForm({ initial, onCancel, onSave }) {
+  const [title, setTitle] = useState(initial?.title || '')
+  const [assignedTo, setAssignedTo] = useState(initial?.assignedTo || 'Both')
+  const [dueDate, setDueDate] = useState(initial?.dueDate || '')
+  const [status, setStatus] = useState(initial?.status || 'To do')
+  const [notes, setNotes] = useState(initial?.notes || '')
+
+  useEffect(() => {
+    if (initial) {
+      setTitle(initial.title || '')
+      setAssignedTo(initial.assignedTo || 'Both')
+      setDueDate(initial.dueDate || '')
+      setStatus(initial.status || 'To do')
+      setNotes(initial.notes || '')
+    }
+  }, [initial])
+
+  const save = () => {
+    onSave({
+      title: title.trim(),
+      assignedTo,
+      dueDate: dueDate || '',
+      status,
+      notes: notes.trim(),
+    })
+  }
+
+  return (
+    <div className="guest-form">
+      <div className="form-row">
+        <div>
+          <label>Task title</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Confirm venue seating" />
+        </div>
+        <div>
+          <label>Assigned to</label>
+          <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}>
+            <option value="Groom's side">Groom's side</option>
+            <option value="Bride's side">Bride's side</option>
+            <option value="Both">Both</option>
+          </select>
+        </div>
+      </div>
+      <div className="form-row">
+        <div>
+          <label>Due date</label>
+          <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        </div>
+        <div>
+          <label>Status</label>
+          <select value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="To do">To do</option>
+            <option value="In progress">In progress</option>
+            <option value="Done">Done</option>
+          </select>
+        </div>
+      </div>
+      <div className="form-row">
+        <div style={{ minWidth: '100%' }}>
+          <label>Notes</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add quick notes here" />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button className="btn-ghost" onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button className="btn-primary" onClick={save} type="button">
+          Save task
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PerformanceForm({ initial, onCancel, onSave }) {
+  const [name, setName] = useState(initial?.name || '')
+  const [contact, setContact] = useState(initial?.contact || '')
+  const [side, setSide] = useState(initial?.side || 'groom')
+  const [groupType, setGroupType] = useState(initial?.groupType || 'solo')
+  const [participantCount, setParticipantCount] = useState(initial?.participantCount || '')
+  const [groupMembers, setGroupMembers] = useState(initial?.groupMembers || '')
+
+  useEffect(() => {
+    if (initial) {
+      setName(initial.name || '')
+      setContact(initial.contact || '')
+      setSide(initial.side || 'groom')
+      setGroupType(initial.groupType || 'solo')
+      setParticipantCount(initial.participantCount || '')
+      setGroupMembers(initial.groupMembers || '')
+    }
+  }, [initial])
+
+  const save = () => {
+    onSave({
+      name: name.trim(),
+      contact: contact.trim(),
+      side,
+      groupType,
+      participantCount: groupType === 'group' ? Number(participantCount) || 1 : undefined,
+      groupMembers: groupType === 'group' ? groupMembers.trim() : '',
+    })
+  }
+
+  return (
+    <div className="guest-form">
+      <div className="form-row">
+        <div>
+          <label>Name</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Person interested" />
+        </div>
+        <div>
+          <label>Contact number</label>
+          <input value={contact} onChange={e => setContact(e.target.value)} placeholder="Phone / WhatsApp" />
+        </div>
+      </div>
+      <div className="form-row">
+        <div>
+          <label>Side</label>
+          <select value={side} onChange={e => setSide(e.target.value)}>
+            <option value="groom">Bhavin's side</option>
+            <option value="bride">Shweta's side</option>
+          </select>
+        </div>
+        <div>
+          <label>Solo or group?</label>
+          <select value={groupType} onChange={e => setGroupType(e.target.value)}>
+            <option value="solo">Solo</option>
+            <option value="group">Group</option>
+          </select>
+        </div>
+      </div>
+      {groupType === 'group' && (
+        <div className="form-row">
+          <div>
+            <label>How many in group?</label>
+            <input type="number" min="2" value={participantCount} onChange={e => setParticipantCount(e.target.value)} placeholder="e.g. 4" />
+          </div>
+          <div>
+            <label>Who is in the group?</label>
+            <input value={groupMembers} onChange={e => setGroupMembers(e.target.value)} placeholder="Names of the group members" />
+          </div>
+        </div>
+      )}
+      <div className="form-actions">
+        <button className="btn-ghost" onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button className="btn-primary" onClick={save} type="button">
+          Save interest
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MultiSelectDropdown({ label, options, selectedValues, onChange }) {
+  const [open, setOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false)
+      }
+    }
+    if (open) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div className="multi-select-dropdown" ref={dropdownRef}>
+      <button className="multi-select-trigger" type="button" onClick={() => setOpen(v => !v)}>
+        <span className="multi-select-display">
+          {selectedValues.length === 0 ? (
+            <span className="multi-select-placeholder">{label}</span>
+          ) : (
+            <>
+              <span className="multi-select-values">{selectedValues.join(', ')}</span>
+              <span className="multi-select-badge">{selectedValues.length}</span>
+            </>
+          )}
+        </span>
+        <span className={`multi-select-chevron ${open ? 'open' : ''}`}>▾</span>
+      </button>
+      {open && (
+        <div className="multi-select-menu">
+          <div className="multi-select-chip-list">
+            {options.map(option => {
+              const active = selectedValues.includes(option)
+              return (
+                <label key={option} className="multi-select-option">
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={() => {
+                      if (active) onChange(selectedValues.filter(v => v !== option))
+                      else onChange([...selectedValues, option])
+                    }}
+                  />
+                  <span className={`multi-select-chip ${active ? 'active' : ''}`}>{option}</span>
+                </label>
+              )
+            })}
+          </div>
+          {selectedValues.length > 0 && (
+            <div className="multi-select-actions">
+              <button className="btn-ghost" type="button" onClick={() => onChange([])}>Clear all</button>
+              <button className="btn-primary" type="button" onClick={() => setOpen(false)}>Done</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ServiceListForm({ initial, onCancel, onSave }) {
+  const [title, setTitle] = useState(initial?.title || '')
+  const [description, setDescription] = useState(initial?.description || '')
+
+  useEffect(() => {
+    if (initial) {
+      setTitle(initial.title || '')
+      setDescription(initial.description || '')
+    }
+  }, [initial])
+
+  const save = () => {
+    onSave({ title: title.trim(), description: description.trim() })
+  }
+
+  return (
+    <div className="guest-form">
+      <div className="form-row">
+        <div>
+          <label>List title</label>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Outfit Coordination" />
+        </div>
+      </div>
+      <div className="form-row">
+        <div style={{ minWidth: '100%' }}>
+          <label>Description / note</label>
+          <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Share a short note for the sign-up list" />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button className="btn-ghost" onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button className="btn-primary" onClick={save} type="button">
+          Save list
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ServiceSignupForm({ initial, functions, listId, onCancel, onSave }) {
+  const [name, setName] = useState(initial?.name || '')
+  const [side, setSide] = useState(initial?.side || 'groom')
+  const [selectedFunctions, setSelectedFunctions] = useState([])
+  const [contactNumber, setContactNumber] = useState(initial?.contactNumber || '')
+  const [notes, setNotes] = useState(initial?.notes || '')
+
+  useEffect(() => {
+    if (initial) {
+      setName(initial.name || '')
+      setSide(initial.side || 'groom')
+      const initialFunctions = initial.functions?.length
+        ? initial.functions
+        : initial.functionId
+          ? [initial.functionId]
+          : []
+      setSelectedFunctions(initialFunctions)
+      setContactNumber(initial.contactNumber || '')
+      setNotes(initial.notes || '')
+    }
+  }, [initial])
+
+  const save = () => {
+    onSave({
+      listId,
+      name: name.trim(),
+      side,
+      functions: selectedFunctions,
+      contactNumber: contactNumber.trim(),
+      notes: notes.trim(),
+    })
+  }
+
+  const options = ['Mandva Muhurat', 'Haldi', 'Dandiya', 'Wedding', ...functions.map(fn => fn.name)]
+
+  return (
+    <div className="guest-form">
+      <div className="form-row">
+        <div>
+          <label>Name</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="Person signing up" />
+        </div>
+        <div>
+          <label>Side</label>
+          <select value={side} onChange={e => setSide(e.target.value)}>
+            <option value="groom">Groom</option>
+            <option value="bride">Bride</option>
+            <option value="both">Both</option>
+          </select>
+        </div>
+      </div>
+      <div className="form-row">
+        <div style={{ minWidth: '100%' }}>
+          <label>Function / Day</label>
+          <MultiSelectDropdown
+            label="Select one or more functions"
+            options={options}
+            selectedValues={selectedFunctions}
+            onChange={setSelectedFunctions}
+          />
+        </div>
+      </div>
+      <div className="form-row">
+        <div>
+          <label>WhatsApp number</label>
+          <input value={contactNumber} onChange={e => setContactNumber(e.target.value)} placeholder="WhatsApp number" />
+        </div>
+        <div style={{ minWidth: '100%' }}>
+          <label>Notes</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. preferred time slot" />
+        </div>
+      </div>
+      <div className="form-actions">
+        <button className="btn-ghost" onClick={onCancel} type="button">
+          Cancel
+        </button>
+        <button className="btn-primary" onClick={save} type="button">
+          Save sign-up
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function FamilyDashboard() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -337,15 +681,30 @@ export default function FamilyDashboard() {
   const [guests, setGuests] = useState([])
   const [rooms, setRooms] = useState([])
   const [functions, setFunctions] = useState([])
+  const [tasks, setTasks] = useState([])
+  const [serviceLists, setServiceLists] = useState([])
+  const [serviceSignups, setServiceSignups] = useState([])
+  const [performanceInterests, setPerformanceInterests] = useState([])
   const [showExpenseForm, setShowExpenseForm] = useState(false)
   const [editingExpense, setEditingExpense] = useState(null)
   const [showGuestForm, setShowGuestForm] = useState(false)
   const [editingGuest, setEditingGuest] = useState(null)
+  const [showTaskForm, setShowTaskForm] = useState(false)
+  const [editingTask, setEditingTask] = useState(null)
+  const [showServiceListForm, setShowServiceListForm] = useState(false)
+  const [editingServiceList, setEditingServiceList] = useState(null)
+  const [showServiceSignupForm, setShowServiceSignupForm] = useState(false)
+  const [editingServiceSignup, setEditingServiceSignup] = useState(null)
+  const [activeServiceListId, setActiveServiceListId] = useState('')
+  const [serviceListsLoaded, setServiceListsLoaded] = useState(false)
   const [expenseFilter, setExpenseFilter] = useState('All')
   const [guestSideFilter, setGuestSideFilter] = useState('All')
   const [guestStatusFilter, setGuestStatusFilter] = useState('All')
   const [assignGuestId, setAssignGuestId] = useState('')
   const [assignRoomId, setAssignRoomId] = useState('')
+  const [performanceSideFilter, setPerformanceSideFilter] = useState('All')
+  const [showPerformanceForm, setShowPerformanceForm] = useState(false)
+  const [editingPerformance, setEditingPerformance] = useState(null)
 
   useEffect(() => {
     if (!isAuthed()) return
@@ -373,14 +732,53 @@ export default function FamilyDashboard() {
       query(collection(db, 'functions'), orderBy('order', 'asc')),
       snapshot => setFunctions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     )
+    const taskUnsub = onSnapshot(
+      query(collection(db, 'tasks'), orderBy('createdAt', 'desc')),
+      snapshot => setTasks(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    )
+    const serviceListUnsub = onSnapshot(
+      query(collection(db, 'serviceLists'), orderBy('title', 'asc')),
+      snapshot => {
+        setServiceLists(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+        setServiceListsLoaded(true)
+      }
+    )
+    const serviceSignupUnsub = onSnapshot(
+      query(collection(db, 'serviceSignups'), orderBy('createdAt', 'asc')),
+      snapshot => setServiceSignups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    )
+    const performanceUnsub = onSnapshot(
+      query(collection(db, 'performanceInterest'), orderBy('createdAt', 'asc')),
+      snapshot => setPerformanceInterests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    )
 
     return () => {
       expenseUnsub()
       guestUnsub()
       roomUnsub()
       functionUnsub()
+      taskUnsub()
+      serviceListUnsub()
+      serviceSignupUnsub()
+      performanceUnsub()
     }
   }, [])
+
+  useEffect(() => {
+    if (!serviceListsLoaded || serviceLists.length > 0) return
+    const defaultLists = [
+      { title: 'Beauty Parlour', description: 'Let us know if you want professional makeup done for the wedding day.' },
+      { title: 'Mehendi Artist', description: 'Share your preferred time slot and any special requests.' },
+    ]
+    defaultLists.forEach(list => addDoc(collection(db, 'serviceLists'), { ...list, createdAt: serverTimestamp() }))
+  }, [serviceLists, serviceListsLoaded])
+
+  useEffect(() => {
+    if (!serviceLists.length) return
+    if (!activeServiceListId) {
+      setActiveServiceListId(serviceLists[0].id)
+    }
+  }, [activeServiceListId, serviceLists])
 
   if (!isAuthed()) {
     return <Navigate to="/family/login" replace />
@@ -432,12 +830,13 @@ export default function FamilyDashboard() {
       const hiddenAssignedCount = (room.assignedGuestIds || []).filter(
         id => !assignedGuests.some(g => g.id === id)
       ).length
+      const capacity = Number(room.capacity || ROOM_CAPACITY[room.type] || 1)
       return {
         ...room,
         assignedGuests,
         hiddenAssignedCount,
         assignedCount: room.assignedGuestIds?.length || 0,
-        capacity: ROOM_CAPACITY[room.type] || 1,
+        capacity,
       }
     }),
     [rooms, guests]
@@ -448,6 +847,39 @@ export default function FamilyDashboard() {
     const statusMatch = guestStatusFilter === 'All' || g.rsvpStatus === guestStatusFilter
     return sideMatch && statusMatch
   })
+
+  const orderedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER
+      const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER
+      if (aDate !== bDate) return aDate - bDate
+      return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)
+    })
+  }, [tasks])
+
+  const taskSummary = useMemo(() => {
+    const done = orderedTasks.filter(task => task.status === 'Done').length
+    return { done, total: orderedTasks.length }
+  }, [orderedTasks])
+
+  const tasksByStatus = useMemo(() => ({
+    'To do': orderedTasks.filter(task => task.status === 'To do'),
+    'In progress': orderedTasks.filter(task => task.status === 'In progress'),
+    Done: orderedTasks.filter(task => task.status === 'Done'),
+  }), [orderedTasks])
+
+  const filteredPerformanceInterests = useMemo(() => {
+    return performanceInterests.filter(entry => {
+      if (performanceSideFilter === 'All') return true
+      return entry.side === (performanceSideFilter === 'groom' ? 'groom' : 'bride')
+    })
+  }, [performanceInterests, performanceSideFilter])
+
+  const performanceSummary = useMemo(() => {
+    const groomCount = filteredPerformanceInterests.filter(entry => entry.side === 'groom').length
+    const brideCount = filteredPerformanceInterests.filter(entry => entry.side === 'bride').length
+    return { total: filteredPerformanceInterests.length, groomCount, brideCount }
+  }, [filteredPerformanceInterests])
 
   const saveExpense = async data => {
     try {
@@ -515,7 +947,7 @@ export default function FamilyDashboard() {
     if (!room) return
     const assigned = new Set(room.assignedGuestIds || [])
     if (assigned.has(assignGuestId)) return
-    const capacity = ROOM_CAPACITY[room.type] || 1
+    const capacity = Number(room.capacity || ROOM_CAPACITY[room.type] || 1)
     if ((assigned.size || 0) >= capacity) return
     await setDoc(doc(db, 'rooms', room.id), {
       assignedGuestIds: [...(room.assignedGuestIds || []), assignGuestId],
@@ -536,15 +968,170 @@ export default function FamilyDashboard() {
   const createRoom = async () => {
     const roomNumber = prompt('New room number:')?.trim()
     if (!roomNumber) return
-    const type = prompt('Room type (single/double/suite):', 'double')
-    if (!type || !ROOM_CAPACITY[type]) return alert('Invalid room type')
+    const capacityInput = prompt('Room capacity:', '4')?.trim()
+    const capacity = Number(capacityInput)
+    if (!capacityInput || !Number.isFinite(capacity) || capacity <= 0) return alert('Please enter a valid room capacity')
     await addDoc(collection(db, 'rooms'), {
       roomNumber,
-      type,
+      capacity,
       assignedGuestIds: [],
       notes: '',
       createdAt: serverTimestamp(),
     })
+  }
+
+  const savePerformanceInterest = async data => {
+    try {
+      if (editingPerformance) {
+        await setDoc(doc(db, 'performanceInterest', editingPerformance.id), {
+          ...data,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      } else {
+        await addDoc(collection(db, 'performanceInterest'), {
+          ...data,
+          createdAt: serverTimestamp(),
+        })
+      }
+      setShowPerformanceForm(false)
+      setEditingPerformance(null)
+    } catch (error) {
+      alert('Could not save performance interest: ' + error.message)
+    }
+  }
+
+  const removePerformanceInterest = async id => {
+    if (!confirm('Delete this performance interest?')) return
+    await deleteDoc(doc(db, 'performanceInterest', id))
+  }
+
+  const saveTask = async data => {
+    try {
+      if (editingTask) {
+        await setDoc(doc(db, 'tasks', editingTask.id), {
+          ...data,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      } else {
+        await addDoc(collection(db, 'tasks'), {
+          ...data,
+          createdAt: serverTimestamp(),
+        })
+      }
+      setShowTaskForm(false)
+      setEditingTask(null)
+    } catch (error) {
+      alert('Could not save task: ' + error.message)
+    }
+  }
+
+  const removeTask = async id => {
+    if (!confirm('Delete this task?')) return
+    await deleteDoc(doc(db, 'tasks', id))
+  }
+
+  const updateTaskStatus = async (task, status) => {
+    await setDoc(doc(db, 'tasks', task.id), { status, updatedAt: serverTimestamp() }, { merge: true })
+  }
+
+  const saveServiceList = async data => {
+    try {
+      if (editingServiceList) {
+        await setDoc(doc(db, 'serviceLists', editingServiceList.id), {
+          ...data,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      } else {
+        await addDoc(collection(db, 'serviceLists'), {
+          ...data,
+          createdAt: serverTimestamp(),
+        })
+      }
+      setShowServiceListForm(false)
+      setEditingServiceList(null)
+    } catch (error) {
+      alert('Could not save service list: ' + error.message)
+    }
+  }
+
+  const removeServiceList = async id => {
+    if (!confirm('Delete this service list and all sign-ups?')) return
+    await deleteDoc(doc(db, 'serviceLists', id))
+    const signupsToDelete = serviceSignups.filter(signup => signup.listId === id)
+    await Promise.all(signupsToDelete.map(signup => deleteDoc(doc(db, 'serviceSignups', signup.id))))
+  }
+
+  const saveServiceSignup = async data => {
+    try {
+      if (editingServiceSignup) {
+        await setDoc(doc(db, 'serviceSignups', editingServiceSignup.id), {
+          ...data,
+          updatedAt: serverTimestamp(),
+        }, { merge: true })
+      } else {
+        await addDoc(collection(db, 'serviceSignups'), {
+          ...data,
+          createdAt: serverTimestamp(),
+        })
+      }
+      setShowServiceSignupForm(false)
+      setEditingServiceSignup(null)
+      setActiveServiceListId(data.listId)
+    } catch (error) {
+      alert('Could not save sign-up: ' + error.message)
+    }
+  }
+
+  const removeServiceSignup = async id => {
+    if (!confirm('Delete this sign-up entry?')) return
+    await deleteDoc(doc(db, 'serviceSignups', id))
+  }
+
+  const exportGuestListPdf = () => {
+    const rows = filteredGuests.map(guest => [
+      guest.name,
+      guest.side,
+      guest.phone || '—',
+      guest.rsvpStatus,
+      guest.functionsAttending?.length
+        ? guest.functionsAttending.map(fnId => functions.find(item => item.id === fnId)?.name || fnId).join(', ')
+        : '—',
+    ])
+    exportPdf('Guest List', ['Name', 'Side', 'Phone', 'RSVP Status', 'Functions Attending'], rows)
+  }
+
+  const exportRoomAssignmentPdf = () => {
+    const rows = roomData.map(room => [
+      room.roomNumber,
+      `Capacity ${room.capacity}`,
+      (room.assignedGuests || []).map(guest => guest?.name).filter(Boolean).join(', ') || 'No guests assigned',
+      `${room.assignedCount}/${room.capacity}`,
+    ])
+    exportPdf('Room Assignment', ['Room Number', 'Capacity', 'Assigned Guests', 'Occupied'], rows)
+  }
+
+  const exportServiceListPdf = listId => {
+    const targetList = serviceLists.find(list => list.id === listId)
+    const rows = serviceSignups
+      .filter(signup => signup.listId === listId)
+      .map(signup => [
+        signup.name,
+        signup.contactNumber || '—',
+        signup.side,
+        (signup.functions?.length ? signup.functions : signup.functionId ? [signup.functionId] : []).join(', ') || '—',
+        signup.notes || '—',
+      ])
+    exportPdf(targetList?.title || 'Service Sign-ups', ['Name', 'Contact', 'Side', 'Function/Day', 'Notes'], rows)
+  }
+
+  const exportPerformancePdf = () => {
+    const rows = filteredPerformanceInterests.map(entry => [
+      entry.name,
+      entry.contact,
+      entry.side === 'groom' ? "Bhavin's side" : "Shweta's side",
+      entry.groupType === 'group' ? `Group (${entry.participantCount || 1})` : 'Solo',
+    ])
+    exportPdf('Performance Interest', ['Name', 'Contact', 'Side', 'Solo/Group'], rows)
   }
 
   const totalExpenses = expenses.length
@@ -568,14 +1155,14 @@ export default function FamilyDashboard() {
       </div>
 
       <div className="dashboard-tabs" role="tablist">
-        {['expenses', 'guests', 'rooms', 'notify'].map(item => (
+        {['expenses', 'guests', 'rooms', 'checklist', 'services', 'performances', 'notify'].map(item => (
           <button
             key={item}
             className={`tab-button ${tab === item ? 'active' : ''}`}
             onClick={() => setSearchParams({ tab: item })}
             type="button"
           >
-            {item === 'expenses' ? 'Expenses' : item === 'guests' ? 'Guests' : item === 'rooms' ? 'Rooms' : 'Notify Guests'}
+            {item === 'expenses' ? 'Expenses' : item === 'guests' ? 'Guests' : item === 'rooms' ? 'Rooms' : item === 'checklist' ? 'Checklist' : item === 'services' ? 'Service Sign-ups' : item === 'performances' ? 'Performances' : 'Notify Guests'}
           </button>
         ))}
       </div>
@@ -658,15 +1245,20 @@ export default function FamilyDashboard() {
               <h2>{guestSectionTitle}</h2>
               <span className="private-badge">Private List</span>
             </div>
-            <button
-              className="btn-primary"
-              onClick={() => {
-                setShowGuestForm(s => !s)
-                setEditingGuest(null)
-              }}
-            >
-              {showGuestForm ? 'Close' : '+ Add guest'}
-            </button>
+            <div className="section-actions">
+              <button className="btn-ghost" onClick={exportGuestListPdf} type="button">
+                Download PDF
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setShowGuestForm(s => !s)
+                  setEditingGuest(null)
+                }}
+              >
+                {showGuestForm ? 'Close' : '+ Add guest'}
+              </button>
+            </div>
           </div>
 
           <div className="dashboard-grid">
@@ -786,7 +1378,10 @@ export default function FamilyDashboard() {
         <section className="section-panel">
           <div className="section-title">
             Rooms
-            <div>
+            <div className="section-actions">
+              <button className="btn-ghost" onClick={exportRoomAssignmentPdf} type="button">
+                Download PDF
+              </button>
               <button className="btn-ghost" onClick={createRoom} type="button">
                 + Add room
               </button>
@@ -816,7 +1411,7 @@ export default function FamilyDashboard() {
                     .filter(room => (room.assignedGuests.length || 0) < room.capacity)
                     .map(room => (
                       <option key={room.id} value={room.id}>
-                        {room.roomNumber} · {room.type} · {room.assignedGuests.length}/{room.capacity}
+                        {room.roomNumber} · capacity {room.capacity} · {room.assignedGuests.length}/{room.capacity}
                       </option>
                     ))}
                 </select>
@@ -838,7 +1433,7 @@ export default function FamilyDashboard() {
                   <div className="room-top">
                     <div>
                       <div className="room-title">Room {room.roomNumber}</div>
-                      <div className="room-meta">{room.type} · {room.assignedCount}/{room.capacity} filled</div>
+                      <div className="room-meta">Capacity {room.capacity} · {room.assignedCount}/{room.capacity} filled</div>
                     </div>
                     <button
                       className="btn-ghost"
@@ -884,7 +1479,258 @@ export default function FamilyDashboard() {
         </section>
       )}
 
-      {tab === 'notify' && <NotifyGuests currentUser={currentUser} />}
+      {tab === 'checklist' && (
+        <section className="section-panel">
+          <div className="section-title">
+            Checklist & Task Tracker
+            <button className="btn-primary" onClick={() => { setShowTaskForm(s => !s); setEditingTask(null) }} type="button">
+              {showTaskForm ? 'Close' : '+ Add task'}
+            </button>
+          </div>
+
+          <div className="task-summary-card">
+            <strong>{taskSummary.done} of {taskSummary.total} tasks done</strong>
+            <span>Keep track of wedding prep, vendor follow-ups, and family reminders.</span>
+          </div>
+
+          {showTaskForm && (
+            <TaskForm
+              initial={editingTask}
+              onCancel={() => {
+                setShowTaskForm(false)
+                setEditingTask(null)
+              }}
+              onSave={saveTask}
+            />
+          )}
+
+          <div className="task-board">
+            {Object.entries(tasksByStatus).map(([status, items]) => (
+              <div key={status} className="task-column">
+                <div className="task-column-header">
+                  <h3>{status}</h3>
+                  <span>{items.length}</span>
+                </div>
+                {items.length === 0 ? (
+                  <div className="empty small">No tasks here yet.</div>
+                ) : (
+                  items.map(task => {
+                    const isOverdue = task.dueDate && task.status !== 'Done' && new Date(task.dueDate) < new Date(new Date().setHours(0, 0, 0, 0))
+                    return (
+                      <div key={task.id} className={`task-card ${isOverdue ? 'overdue' : ''}`}>
+                        <div className="task-card-top">
+                          <div>
+                            <div className="task-title">{task.title}</div>
+                            <div className="task-meta">Assigned to: {task.assignedTo}</div>
+                            {task.dueDate && (
+                              <div className={`task-due ${isOverdue ? 'overdue-text' : ''}`}>
+                                Due {new Date(task.dueDate).toLocaleDateString('en-IN')}
+                              </div>
+                            )}
+                          </div>
+                          <select value={task.status} onChange={e => updateTaskStatus(task, e.target.value)}>
+                            <option value="To do">To do</option>
+                            <option value="In progress">In progress</option>
+                            <option value="Done">Done</option>
+                          </select>
+                        </div>
+                        {task.notes && <div className="task-notes">{task.notes}</div>}
+                        <div className="guest-actions task-actions">
+                          <button className="btn-ghost" onClick={() => { setEditingTask(task); setShowTaskForm(true) }} type="button">
+                            Edit
+                          </button>
+                          <button className="btn-danger" onClick={() => removeTask(task.id)} type="button">
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {tab === 'services' && (
+        <section className="section-panel">
+          <div className="section-title">
+            Service Sign-ups
+            <div className="section-actions">
+              <button className="btn-ghost" onClick={() => { setShowServiceListForm(s => !s); setEditingServiceList(null) }} type="button">
+                {showServiceListForm ? 'Close list form' : '+ Add new list'}
+              </button>
+            </div>
+          </div>
+
+          {showServiceListForm && (
+            <ServiceListForm
+              initial={editingServiceList}
+              onCancel={() => {
+                setShowServiceListForm(false)
+                setEditingServiceList(null)
+              }}
+              onSave={saveServiceList}
+            />
+          )}
+
+          <div className="service-list-grid">
+            {serviceLists.map(list => {
+              const listSignups = serviceSignups.filter(signup => signup.listId === list.id)
+              const headcount = listSignups.length
+              const functionBreakdown = listSignups.reduce((counts, signup) => {
+                const functionsForSignup = (Array.isArray(signup.functions) && signup.functions.length
+                  ? signup.functions
+                  : signup.functionId
+                    ? [signup.functionId]
+                    : [])
+                functionsForSignup.forEach(functionNameOrId => {
+                  const functionName = typeof functionNameOrId === 'string' && functions.some(fn => fn.id === functionNameOrId)
+                    ? functions.find(fn => fn.id === functionNameOrId)?.name || functionNameOrId
+                    : functionNameOrId
+                  counts[functionName] = (counts[functionName] || 0) + 1
+                })
+                if (functionsForSignup.length === 0) {
+                  counts.Unspecified = (counts.Unspecified || 0) + 1
+                }
+                return counts
+              }, {})
+              return (
+                <div key={list.id} className="service-list-card">
+                  <div className="service-list-header">
+                    <div>
+                      <div className="service-list-title">{list.title}</div>
+                      {list.description && <div className="service-list-description">{list.description}</div>}
+                    </div>
+                    <div className="section-actions">
+                      <button className="btn-ghost" onClick={() => exportServiceListPdf(list.id)} type="button">
+                        Download PDF
+                      </button>
+                      <button className="btn-ghost" onClick={() => { setEditingServiceList(list); setShowServiceListForm(true) }} type="button">
+                        Edit
+                      </button>
+                      <button className="btn-danger" onClick={() => removeServiceList(list.id)} type="button">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  <div className="service-list-summary">
+                    <strong>{headcount} people signed up</strong>
+                    <span>{Object.entries(functionBreakdown).map(([name, count]) => `${name}: ${count}`).join(' · ') || 'No function breakdown yet'}</span>
+                  </div>
+                  {showServiceSignupForm && activeServiceListId === list.id ? (
+                    <ServiceSignupForm
+                      initial={editingServiceSignup}
+                      functions={functions}
+                      listId={list.id}
+                      onCancel={() => {
+                        setShowServiceSignupForm(false)
+                        setEditingServiceSignup(null)
+                      }}
+                      onSave={saveServiceSignup}
+                    />
+                  ) : (
+                    <button className="btn-primary service-add-button" onClick={() => { setActiveServiceListId(list.id); setShowServiceSignupForm(true); setEditingServiceSignup(null) }} type="button">
+                      + Add sign-up
+                    </button>
+                  )}
+                  {listSignups.length > 0 ? (
+                    <div className="service-signup-list">
+                      {listSignups.map(signup => (
+                        <div key={signup.id} className="service-signup-row">
+                          <div>
+                            <div className="service-signup-name">{signup.name}</div>
+                            <div className="service-signup-meta">{signup.contactNumber ? `${signup.contactNumber} · ` : ''}{signup.side} · {(signup.functions?.length ? signup.functions : signup.functionId ? [signup.functionId] : []).join(', ') || 'No function selected'}</div>
+                            {signup.notes && <div className="task-notes">{signup.notes}</div>}
+                          </div>
+                          <div className="guest-actions">
+                            <button className="btn-ghost" onClick={() => { setEditingServiceSignup(signup); setActiveServiceListId(list.id); setShowServiceSignupForm(true) }} type="button">
+                              Edit
+                            </button>
+                            <button className="btn-danger" onClick={() => removeServiceSignup(signup.id)} type="button">
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="empty small">No sign-ups yet.</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {tab === 'performances' && (
+        <section className="section-panel">
+          <div className="section-title">
+            Performances
+            <div className="section-actions">
+              <button className="btn-ghost" onClick={exportPerformancePdf} type="button">
+                Download PDF
+              </button>
+              <button className="btn-primary" onClick={() => { setShowPerformanceForm(s => !s); setEditingPerformance(null) }} type="button">
+                {showPerformanceForm ? 'Close' : '+ Add interest'}
+              </button>
+            </div>
+          </div>
+          {showPerformanceForm && (
+            <PerformanceForm
+              initial={editingPerformance}
+              onCancel={() => {
+                setShowPerformanceForm(false)
+                setEditingPerformance(null)
+              }}
+              onSave={savePerformanceInterest}
+            />
+          )}
+          <div className="performance-stats">
+            <strong>{performanceSummary.total} people interested — {performanceSummary.groomCount} from Bhavin's side, {performanceSummary.brideCount} from Shweta's side.</strong>
+            <label>
+              <span style={{ display: 'inline-block', marginRight: '8px' }}>Filter</span>
+              <select value={performanceSideFilter} onChange={e => setPerformanceSideFilter(e.target.value)}>
+                <option value="All">All</option>
+                <option value="groom">Bhavin's side</option>
+                <option value="bride">Shweta's side</option>
+              </select>
+            </label>
+          </div>
+          {filteredPerformanceInterests.length === 0 ? (
+            <div className="empty">No performance interests yet.</div>
+          ) : (
+            <div className="performance-list">
+              {filteredPerformanceInterests.map(entry => (
+                <div key={entry.id} className="performance-row">
+                  <div>
+                    <div className="guest-name">{entry.name}</div>
+                    <div className="guest-meta">{entry.contact}</div>
+                    <div className="guest-meta">
+                      {entry.groupType === 'group'
+                        ? `Group · ${entry.participantCount || 1} people${entry.groupMembers ? ` · ${entry.groupMembers}` : ''}`
+                        : 'Solo'}
+                    </div>
+                  </div>
+                  <div className="guest-actions">
+                    <span className={`performance-badge ${entry.side}`}>{entry.side === 'groom' ? "Bhavin's side" : "Shweta's side"}</span>
+                    <button className="btn-ghost" onClick={() => { setEditingPerformance(entry); setShowPerformanceForm(true) }} type="button">
+                      Edit
+                    </button>
+                    <button className="btn-danger" onClick={() => removePerformanceInterest(entry.id)} type="button">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {tab === 'notify' && <NotifyGuests currentUser={currentUser} serviceLists={serviceLists} serviceSignups={serviceSignups} />}
     </main>
   )
 }
