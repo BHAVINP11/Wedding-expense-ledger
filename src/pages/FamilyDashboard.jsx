@@ -1127,9 +1127,22 @@ export default function FamilyDashboard() {
   }
 
   const exportExpenseReport = () => {
+    const personalOnly = filteredExpenses.length > 0 && filteredExpenses.every(expense => expense.type === 'personal')
+    const headers = personalOnly
+      ? ['Type', 'Category', 'Description', 'Total (INR)', 'Notes']
+      : ['Type', 'Category', 'Description', 'Total (INR)', 'Split', 'Bhavin Paid', 'Shweta Paid', 'Outstanding', 'Notes']
     const rows = filteredExpenses.map(expense => {
       const isPersonal = expense.type === 'personal'
       const totals = computeExpense(expense)
+      if (personalOnly) {
+        return [
+          'Personal',
+          expense.category || 'Other',
+          expense.vendor || '—',
+          Number(expense.total || 0).toLocaleString('en-IN'),
+          expense.notes || '—',
+        ]
+      }
       return [
         isPersonal ? 'Personal' : 'Shared',
         expense.category || 'Other',
@@ -1143,7 +1156,13 @@ export default function FamilyDashboard() {
       ]
     })
     const totalAmount = filteredExpenses.reduce((sum, expense) => sum + (Number(expense.total) || 0), 0)
-    rows.push([
+    rows.push(personalOnly ? [
+      '',
+      '',
+      'TOTAL AMOUNT',
+      totalAmount.toLocaleString('en-IN'),
+      '',
+    ] : [
       '',
       '',
       'TOTAL AMOUNT',
@@ -1154,10 +1173,10 @@ export default function FamilyDashboard() {
       '',
       '',
     ])
-    const reportType = expenseTypeFilter === 'All' ? 'Expense' : expenseTypeFilter
+    const reportTitle = expenseTypeFilter === 'All' ? 'Expense Report' : `${expenseTypeFilter} Expense Report`
     exportPdf(
-      `${reportType} Expense Report`,
-      ['Type', 'Category', 'Description', 'Total (INR)', 'Split', 'Bhavin Paid', 'Shweta Paid', 'Outstanding', 'Notes'],
+      reportTitle,
+      headers,
       rows,
       { orientation: 'landscape' }
     )
