@@ -1142,6 +1142,18 @@ export default function FamilyDashboard() {
         expense.notes || '—',
       ]
     })
+    const totalAmount = filteredExpenses.reduce((sum, expense) => sum + (Number(expense.total) || 0), 0)
+    rows.push([
+      '',
+      '',
+      'TOTAL AMOUNT',
+      totalAmount.toLocaleString('en-IN'),
+      '',
+      '',
+      '',
+      '',
+      '',
+    ])
     const reportType = expenseTypeFilter === 'All' ? 'Expense' : expenseTypeFilter
     exportPdf(
       `${reportType} Expense Report`,
