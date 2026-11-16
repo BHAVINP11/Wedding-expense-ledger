@@ -1124,6 +1124,31 @@ export default function FamilyDashboard() {
     exportPdf('Guest List', ['Name', 'Side', 'Phone', 'RSVP Status', 'Functions Attending'], rows)
   }
 
+  const exportExpenseReport = () => {
+    const rows = filteredExpenses.map(expense => {
+      const isPersonal = expense.type === 'personal'
+      const totals = computeExpense(expense)
+      return [
+        isPersonal ? 'Personal' : 'Shared',
+        expense.category || 'Other',
+        expense.vendor || '—',
+        Number(expense.total || 0).toLocaleString('en-IN'),
+        isPersonal ? '—' : `${expense.splitBoy ?? 50}% Bhavin`,
+        isPersonal ? '—' : Number(expense.boyPaid || 0).toLocaleString('en-IN'),
+        isPersonal ? '—' : Number(expense.girlPaid || 0).toLocaleString('en-IN'),
+        isPersonal ? '—' : Number(totals.pending || 0).toLocaleString('en-IN'),
+        expense.notes || '—',
+      ]
+    })
+    const reportType = expenseTypeFilter === 'All' ? 'Expense' : expenseTypeFilter
+    exportPdf(
+      `${reportType} Expense Report`,
+      ['Type', 'Category', 'Description', 'Total (INR)', 'Split', 'Bhavin Paid', 'Shweta Paid', 'Outstanding', 'Notes'],
+      rows,
+      { orientation: 'landscape' }
+    )
+  }
+
   const exportRoomAssignmentPdf = () => {
     const rows = roomData.map(room => [
       room.roomNumber,
@@ -1195,15 +1220,20 @@ export default function FamilyDashboard() {
         <section className="section-panel">
           <div className="section-title">
             Expenses
-            <button
-              className="btn-primary"
-              onClick={() => {
-                setShowExpenseForm(s => !s)
-                setEditingExpense(null)
-              }}
-            >
-              {showExpenseForm ? 'Close' : '+ Add expense'}
-            </button>
+            <div className="section-actions">
+              <button className="btn-ghost" onClick={exportExpenseReport} disabled={!filteredExpenses.length}>
+                Download PDF
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  setShowExpenseForm(s => !s)
+                  setEditingExpense(null)
+                }}
+              >
+                {showExpenseForm ? 'Close' : '+ Add expense'}
+              </button>
+            </div>
           </div>
 
           {showExpenseForm && (

@@ -19,8 +19,8 @@ function addPdfHeader(doc) {
   doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, 40, 72)
 }
 
-export function exportPdf(tableTitle, headers, rows) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' })
+export function exportPdf(tableTitle, headers, rows, options = {}) {
+  const doc = new jsPDF({ orientation: options.orientation || 'portrait', unit: 'pt', format: 'a4' })
   addPdfHeader(doc)
 
   doc.setFont('helvetica', 'bold')
