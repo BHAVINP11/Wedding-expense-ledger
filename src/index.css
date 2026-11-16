@@ -89,6 +89,9 @@ input:focus,select:focus{outline:none;border-color:var(--gold)}
 .expense-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px}
 .expense-title{font-weight:600;font-size:15px}
 .expense-cat{font-size:12px;color:var(--text-soft)}
+.expense-type-badge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;margin-top:6px;margin-right:6px}
+.expense-type-badge.shared{background:#E5ECF8;color:#365684}
+.expense-type-badge.personal{background:#F3DFB0;color:#765516}
 .expense-total{font-family:'Fraunces',serif;font-weight:600;font-size:17px;color:var(--maroon-dark);white-space:nowrap}
 .badge{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;margin-top:4px}
 .badge.paid{background:var(--green-light);color:var(--green)}

@@ -71,6 +71,7 @@ function computeExpense(e) {
 
 function ExpenseCard({ e, onEdit, onDelete }) {
   const c = computeExpense(e)
+  const isPersonal = e.type === 'personal'
   const boyPct = e.total > 0 ? (e.boyPaid / e.total) * 100 : 0
   const girlPct = e.total > 0 ? (e.girlPaid / e.total) * 100 : 0
   return (
@@ -79,13 +80,16 @@ function ExpenseCard({ e, onEdit, onDelete }) {
         <div>
           <div className="expense-title">{e.vendor || e.category}</div>
           <div className="expense-cat">{e.category}</div>
-          <span className={`badge ${c.status}`}>
-            {c.status === 'paid' ? 'Fully paid' : c.status === 'partial' ? 'Partially paid' : 'Pending'}
+          <span className={`expense-type-badge ${isPersonal ? 'personal' : 'shared'}`}>
+            {isPersonal ? 'Personal' : 'Shared'}
           </span>
+          {!isPersonal && <span className={`badge ${c.status}`}>
+            {c.status === 'paid' ? 'Fully paid' : c.status === 'partial' ? 'Partially paid' : 'Pending'}
+          </span>}
         </div>
         <div className="expense-total">{fmt(e.total)}</div>
       </div>
-      <div className="split-bar">
+      {!isPersonal && <><div className="split-bar">
         <div className="boy" style={{ width: `${boyPct}%` }} />
         <div className="girl" style={{ width: `${girlPct}%` }} />
       </div>
@@ -101,6 +105,7 @@ function ExpenseCard({ e, onEdit, onDelete }) {
           {c.girlOwed > 0.5 && <b>{fmt(c.girlOwed)}</b>}
         </span>
       </div>
+      </>}
       {e.notes && <div className="expense-notes">{e.notes}</div>}
       <div className="expense-footer">
         <button className="btn-ghost" onClick={() => onEdit(e)}>
@@ -115,6 +120,7 @@ function ExpenseCard({ e, onEdit, onDelete }) {
 }
 
 function ExpenseForm({ onCancel, onSave, initial }) {
+  const [type, setType] = useState(initial?.type || 'shared')
   const [category, setCategory] = useState(initial?.category || 'Venue')
   const [vendor, setVendor] = useState(initial?.vendor || '')
   const [total, setTotal] = useState(initial?.total || '')
@@ -125,6 +131,7 @@ function ExpenseForm({ onCancel, onSave, initial }) {
 
   useEffect(() => {
     if (initial) {
+      setType(initial.type || 'shared')
       setCategory(initial.category || 'Venue')
       setVendor(initial.vendor || '')
       setTotal(initial.total || '')
@@ -137,6 +144,7 @@ function ExpenseForm({ onCancel, onSave, initial }) {
 
   const save = () => {
     onSave({
+      type,
       category,
       vendor: vendor.trim(),
       total: Number(total) || 0,
@@ -149,6 +157,15 @@ function ExpenseForm({ onCancel, onSave, initial }) {
 
   return (
     <div className="expense-form">
+      <div className="form-row">
+        <div>
+          <label>Expense type</label>
+          <select value={type} onChange={e => setType(e.target.value)}>
+            <option value="shared">Shared — visible to both</option>
+            <option value="personal">Personal — shown only in your dashboard</option>
+          </select>
+        </div>
+      </div>
       <div className="form-row">
         <div>
           <label>Category</label>
@@ -174,11 +191,12 @@ function ExpenseForm({ onCancel, onSave, initial }) {
           <label>Total bill amount (₹)</label>
           <input type="number" value={total} onChange={e => setTotal(e.target.value)} placeholder="0" />
         </div>
-        <div>
+        {type === 'shared' && <div>
           <label>Split — Bhavin share (%)</label>
           <input type="number" value={splitBoy} onChange={e => setSplitBoy(e.target.value)} min={0} max={100} />
-        </div>
+        </div>}
       </div>
+      {type === 'shared' && <>
       <div className="form-row">
         <div>
           <label>Amount already paid by Bhavin (₹)</label>
@@ -189,6 +207,7 @@ function ExpenseForm({ onCancel, onSave, initial }) {
           <input type="number" value={girlPaid} onChange={e => setGirlPaid(e.target.value)} placeholder="0" />
         </div>
       </div>
+      </>}
       <div className="form-row">
         <div>
           <label>Notes (optional)</label>
@@ -698,6 +717,7 @@ export default function FamilyDashboard() {
   const [activeServiceListId, setActiveServiceListId] = useState('')
   const [serviceListsLoaded, setServiceListsLoaded] = useState(false)
   const [expenseFilter, setExpenseFilter] = useState('All')
+  const [expenseTypeFilter, setExpenseTypeFilter] = useState('All')
   const [guestSideFilter, setGuestSideFilter] = useState('All')
   const [guestStatusFilter, setGuestStatusFilter] = useState('All')
   const [assignGuestId, setAssignGuestId] = useState('')
@@ -789,8 +809,10 @@ export default function FamilyDashboard() {
     navigate('/family/login', { replace: true })
   }
 
-  const filteredExpenses = expenses.filter(
-    e => expenseFilter === 'All' || e.category === expenseFilter
+  const visibleExpenses = expenses.filter(e => e.type !== 'personal' || e.ownerId === currentFamilyUser())
+  const filteredExpenses = visibleExpenses.filter(e =>
+    (expenseFilter === 'All' || e.category === expenseFilter) &&
+    (expenseTypeFilter === 'All' || (e.type || 'shared') === expenseTypeFilter.toLowerCase())
   )
 
   const guestCounts = useMemo(() => {
@@ -886,12 +908,14 @@ export default function FamilyDashboard() {
       if (editingExpense) {
         await setDoc(doc(db, 'expenses', editingExpense.id), {
           ...data,
+          ownerId: editingExpense.ownerId || currentFamilyUser(),
           updatedAt: serverTimestamp(),
         }, { merge: true })
         setEditingExpense(null)
       } else {
         await addDoc(collection(db, 'expenses'), {
           ...data,
+          ownerId: currentFamilyUser(),
           createdAt: serverTimestamp(),
         })
       }
@@ -1134,11 +1158,11 @@ export default function FamilyDashboard() {
     exportPdf('Performance Interest', ['Name', 'Contact', 'Side', 'Solo/Group'], rows)
   }
 
-  const totalExpenses = expenses.length
+  const totalExpenses = visibleExpenses.length
   const totalGuests = guestCounts.total
   const totalRooms = roomData.length
   const totalPendingBalance = fmt(
-    expenses.reduce((sum, e) => {
+    visibleExpenses.reduce((sum, e) => {
       const paid = (e.boyPaid || 0) + (e.girlPaid || 0)
       return sum + Math.max(0, (e.total || 0) - paid)
     }, 0)
@@ -1192,6 +1216,19 @@ export default function FamilyDashboard() {
               onSave={saveExpense}
             />
           )}
+
+          <div className="filters" role="tablist" aria-label="Filter by expense type">
+            {['All', 'Shared', 'Personal'].map(type => (
+              <button
+                key={type}
+                type="button"
+                className={`filter-chip ${type === expenseTypeFilter ? 'active' : ''}`}
+                onClick={() => setExpenseTypeFilter(type)}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
 
           <div className="filters" role="tablist">
             {CATEGORIES.map(c => (
