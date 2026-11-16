@@ -30,6 +30,7 @@ const CATEGORIES = [
   'Mehendi/Sangeet',
   'DJ/Music',
   'Outfits',
+  'Chhab, Outfit for family',
   'Jewelry',
   'Invitations',
   'Priest/Rituals',
